@@ -1,8 +1,5 @@
-import { Check, Dumbbell, Flame, Plus, Trash2 } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
-import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { Moon } from 'lucide-react-native';
+import { Check, Dumbbell, Flame, Moon, Plus, Trash2 } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
