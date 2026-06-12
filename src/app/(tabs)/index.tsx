@@ -1,4 +1,5 @@
 import { useFocusEffect } from 'expo-router';
+import { Flame } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -111,8 +112,9 @@ export default function ProfileScreen() {
           <ExpBar totalExp={profile.total_exp} />
           <View className="mt-4 flex-row justify-around">
             <HeroStat
-              value={`${displayStreak(profile.current_streak, profile.last_workout_date)}🔥`}
+              value={String(displayStreak(profile.current_streak, profile.last_workout_date))}
               label="Streak"
+              icon={<Flame size={16} color="#F59E0B" strokeWidth={1.75} />}
             />
             <HeroStat value={profile.total_exp.toLocaleString()} label="Total EXP" />
             <HeroStat value={String(profile.longest_streak)} label="Best streak" />
@@ -142,10 +144,21 @@ export default function ProfileScreen() {
   );
 }
 
-function HeroStat({ value, label }: { value: string; label: string }) {
+function HeroStat({
+  value,
+  label,
+  icon,
+}: {
+  value: string;
+  label: string;
+  icon?: React.ReactNode;
+}) {
   return (
     <View className="items-center">
-      <Text className="text-lg font-bold text-white">{value}</Text>
+      <View className="flex-row items-center gap-1">
+        <Text className="text-lg font-bold text-white">{value}</Text>
+        {icon}
+      </View>
       <Text className="text-xs text-muted">{label}</Text>
     </View>
   );
