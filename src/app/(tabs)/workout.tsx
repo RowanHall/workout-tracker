@@ -38,6 +38,7 @@ export default function WorkoutScreen() {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [restTrigger, setRestTrigger] = useState(0);
   const [summary, setSummary] = useState<WorkoutSummary | null>(null);
+  const [expBeforeWorkout, setExpBeforeWorkout] = useState(0);
   const [finishing, setFinishing] = useState(false);
 
   async function handleFinish() {
@@ -46,9 +47,11 @@ export default function WorkoutScreen() {
       return;
     }
     setFinishing(true);
+    const expBefore = profile?.total_exp ?? 0;
     try {
       const result = await finish();
       if (result && !result.discarded) {
+        setExpBeforeWorkout(expBefore);
         setSummary(result);
         refreshProfile();
       }
@@ -94,7 +97,11 @@ export default function WorkoutScreen() {
             <Text className="text-lg font-bold text-background">Start Workout</Text>
           </Pressable>
         </View>
-        <WorkoutSummaryModal summary={summary} onClose={() => setSummary(null)} />
+        <WorkoutSummaryModal
+          summary={summary}
+          previousTotalExp={expBeforeWorkout}
+          onClose={() => setSummary(null)}
+        />
       </SafeAreaView>
     );
   }
@@ -161,7 +168,11 @@ export default function WorkoutScreen() {
         onClose={() => setPickerVisible(false)}
         onSelect={addExercise}
       />
-      <WorkoutSummaryModal summary={summary} onClose={() => setSummary(null)} />
+      <WorkoutSummaryModal
+        summary={summary}
+        previousTotalExp={expBeforeWorkout}
+        onClose={() => setSummary(null)}
+      />
     </SafeAreaView>
   );
 }
