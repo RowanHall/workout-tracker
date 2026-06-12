@@ -5,8 +5,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ConsistencyCalendar } from '@/components/ConsistencyCalendar';
 import { ExpBar } from '@/components/ExpBar';
-import { displayStreak } from '@/lib/exp';
 import { VolumeChart, type VolumeByGroup } from '@/components/VolumeChart';
+import { WeekTracker } from '@/components/WeekTracker';
+import { displayStreak } from '@/lib/exp';
 import { dateKey } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/AuthProvider';
@@ -117,6 +118,10 @@ export default function ProfileScreen() {
             <HeroStat value={String(profile.longest_streak)} label="Best streak" />
           </View>
         </View>
+
+        <SectionCard title="This Week">
+          <WeekTracker workoutDates={workoutDates} />
+        </SectionCard>
 
         <SectionCard title="Consistency">
           <ConsistencyCalendar workoutDates={workoutDates} />
