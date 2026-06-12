@@ -7,6 +7,7 @@ import { ConsistencyCalendar } from '@/components/ConsistencyCalendar';
 import { ExpBar } from '@/components/ExpBar';
 import { displayStreak } from '@/lib/exp';
 import { VolumeChart, type VolumeByGroup } from '@/components/VolumeChart';
+import { dateKey } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -24,6 +25,8 @@ export default function ProfileScreen() {
 
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 90);
+    const yearCutoff = new Date();
+    yearCutoff.setDate(yearCutoff.getDate() - 372);
 
     const [workoutsRes, setsRes, followersRes, followingRes] =
       await Promise.all([
@@ -32,7 +35,7 @@ export default function ProfileScreen() {
           .select('ended_at')
           .eq('user_id', userId)
           .not('ended_at', 'is', null)
-          .gte('ended_at', cutoff.toISOString()),
+          .gte('ended_at', yearCutoff.toISOString()),
         supabase
           .from('workout_sets')
           .select('weight, reps, exercises (muscle_group), workouts!inner (user_id, ended_at)')
@@ -50,7 +53,7 @@ export default function ProfileScreen() {
       ]);
 
     setWorkoutDates(
-      (workoutsRes.data ?? []).map((w) => (w.ended_at as string).slice(0, 10))
+      (workoutsRes.data ?? []).map((w) => dateKey(new Date(w.ended_at as string)))
     );
 
     const volumes = new Map<string, number>();

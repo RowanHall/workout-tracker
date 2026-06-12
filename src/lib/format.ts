@@ -21,6 +21,14 @@ export function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
+/** Local-timezone YYYY-MM-DD key, for grouping things by calendar day. */
+export function dateKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 export function workoutTitleForNow(): string {
   const hour = new Date().getHours();
   if (hour < 11) return 'Morning Workout';
