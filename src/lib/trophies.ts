@@ -1,5 +1,15 @@
 import type { LucideIcon } from 'lucide-react-native';
-import { Dumbbell, Flame, Mountain, Shield, Trophy } from 'lucide-react-native';
+import {
+  Anchor,
+  Dumbbell,
+  Flame,
+  Footprints,
+  Medal,
+  Mountain,
+  Shield,
+  TrendingUp,
+  Trophy,
+} from 'lucide-react-native';
 
 import type { TrophyTier } from '@/lib/types';
 
@@ -37,6 +47,10 @@ const ICONS: Record<string, LucideIcon> = {
   flame: Flame,
   shield: Shield,
   dumbbell: Dumbbell,
+  medal: Medal,
+  'trending-up': TrendingUp,
+  footprints: Footprints,
+  anchor: Anchor,
 };
 
 export function trophyIcon(name: string): LucideIcon {

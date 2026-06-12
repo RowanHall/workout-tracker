@@ -33,11 +33,11 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="trophies"
+        name="stats"
         options={{
-          title: 'Trophies',
+          title: 'Stats',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="trophy" color={color} size={size} />
+            <Ionicons name="stats-chart" color={color} size={size} />
           ),
         }}
       />
