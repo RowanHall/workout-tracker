@@ -52,13 +52,7 @@ export interface WorkoutSet {
   is_pr: boolean;
 }
 
-export interface Trophy {
-  id: number;
-  code: string;
-  name: string;
-  description: string;
-  icon: string;
-}
+export type TrophyTier = 'none' | 'bronze' | 'silver' | 'gold' | 'platinum';
 
 export interface FeedInteraction {
   id: string;
@@ -89,5 +83,10 @@ export interface WorkoutSummary {
   leveled_up: boolean;
   new_level: number;
   prs: { exercise: string; type: string; value: number }[];
-  new_trophies: { code: string; name: string; icon: string }[];
+  new_tiers: {
+    key: string;
+    name: string;
+    icon: string;
+    tier: Exclude<TrophyTier, 'none'>;
+  }[];
 }

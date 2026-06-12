@@ -8,15 +8,12 @@ import { ExpBar } from '@/components/ExpBar';
 import { displayStreak } from '@/lib/exp';
 import { VolumeChart, type VolumeByGroup } from '@/components/VolumeChart';
 import { supabase } from '@/lib/supabase';
-import type { Trophy } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
 
 export default function ProfileScreen() {
   const { session, profile, refreshProfile } = useAuth();
   const userId = session?.user.id;
 
-  const [trophies, setTrophies] = useState<Trophy[]>([]);
-  const [unlockedIds, setUnlockedIds] = useState<Set<number>>(new Set());
   const [workoutDates, setWorkoutDates] = useState<string[]>([]);
   const [volumeByGroup, setVolumeByGroup] = useState<VolumeByGroup[]>([]);
   const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
@@ -28,10 +25,8 @@ export default function ProfileScreen() {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 90);
 
-    const [trophyRes, unlockedRes, workoutsRes, setsRes, followersRes, followingRes] =
+    const [workoutsRes, setsRes, followersRes, followingRes] =
       await Promise.all([
-        supabase.from('trophies').select('*').order('id'),
-        supabase.from('user_trophies').select('trophy_id').eq('user_id', userId),
         supabase
           .from('workouts')
           .select('ended_at')
@@ -54,8 +49,6 @@ export default function ProfileScreen() {
           .eq('follower_id', userId),
       ]);
 
-    setTrophies((trophyRes.data as Trophy[]) ?? []);
-    setUnlockedIds(new Set((unlockedRes.data ?? []).map((row) => row.trophy_id)));
     setWorkoutDates(
       (workoutsRes.data ?? []).map((w) => (w.ended_at as string).slice(0, 10))
     );
@@ -128,30 +121,6 @@ export default function ProfileScreen() {
 
         <SectionCard title="Volume by Muscle (90 days)">
           <VolumeChart data={volumeByGroup} />
-        </SectionCard>
-
-        <SectionCard title="Trophies">
-          <View className="flex-row flex-wrap gap-2">
-            {trophies.map((trophy) => {
-              const unlocked = unlockedIds.has(trophy.id);
-              return (
-                <View
-                  key={trophy.id}
-                  className={`w-[31%] items-center rounded-xl bg-surface-2 px-2 py-3 ${
-                    unlocked ? '' : 'opacity-30'
-                  }`}
-                >
-                  <Text className="mb-1 text-2xl">{trophy.icon}</Text>
-                  <Text
-                    className="text-center text-xs font-semibold text-white"
-                    numberOfLines={2}
-                  >
-                    {trophy.name}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
         </SectionCard>
 
         <Pressable

@@ -1,6 +1,7 @@
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { formatVolume } from '@/lib/format';
+import { TIER_COLORS, tierLabel, trophyIcon } from '@/lib/trophies';
 import type { WorkoutSummary } from '@/lib/types';
 
 interface WorkoutSummaryModalProps {
@@ -56,18 +57,26 @@ export function WorkoutSummaryModal({ summary, onClose }: WorkoutSummaryModalPro
               </View>
             )}
 
-            {summary.new_trophies.length > 0 && (
+            {summary.new_tiers.length > 0 && (
               <View className="mb-4">
-                <Text className="mb-2 font-bold text-white">Trophies Unlocked</Text>
-                {summary.new_trophies.map((t) => (
-                  <View
-                    key={t.code}
-                    className="mb-1.5 flex-row items-center gap-2 rounded-xl bg-surface-2 px-3 py-2"
-                  >
-                    <Text className="text-xl">{t.icon}</Text>
-                    <Text className="font-semibold text-white">{t.name}</Text>
-                  </View>
-                ))}
+                <Text className="mb-2 font-bold text-white">Trophy Tiers Reached</Text>
+                {summary.new_tiers.map((t) => {
+                  const Icon = trophyIcon(t.icon);
+                  const color = TIER_COLORS[t.tier];
+                  return (
+                    <View
+                      key={`${t.key}-${t.tier}`}
+                      className="mb-1.5 flex-row items-center gap-2.5 rounded-xl border bg-surface-2 px-3 py-2.5"
+                      style={{ borderColor: color }}
+                    >
+                      <Icon size={22} color={color} strokeWidth={1.75} />
+                      <Text className="flex-1 font-semibold text-white">{t.name}</Text>
+                      <Text className="text-sm font-bold" style={{ color }}>
+                        {tierLabel(t.tier)}
+                      </Text>
+                    </View>
+                  );
+                })}
               </View>
             )}
           </ScrollView>
