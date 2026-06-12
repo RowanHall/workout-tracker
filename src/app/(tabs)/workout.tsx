@@ -1,5 +1,9 @@
 import { Check, Dumbbell, Flame, Plus, Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { router, useFocusEffect } from 'expo-router';
+import { Moon } from 'lucide-react-native';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,9 +19,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ExercisePicker } from '@/components/ExercisePicker';
 import { RestTimer } from '@/components/RestTimer';
+import { WeekTracker } from '@/components/WeekTracker';
 import { WorkoutSummaryModal } from '@/components/WorkoutSummaryModal';
 import { useActiveWorkout, type WorkoutEntry } from '@/hooks/useActiveWorkout';
 import { displayStreak } from '@/lib/exp';
+import { dateKey } from '@/lib/format';
+import { supabase } from '@/lib/supabase';
 import type { WorkoutSummary } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -40,6 +47,65 @@ export default function WorkoutScreen() {
   const [summary, setSummary] = useState<WorkoutSummary | null>(null);
   const [expBeforeWorkout, setExpBeforeWorkout] = useState(0);
   const [finishing, setFinishing] = useState(false);
+  const [weekWorkoutIds, setWeekWorkoutIds] = useState<Record<string, string>>({});
+  const [weekRestDates, setWeekRestDates] = useState<string[]>([]);
+  const [loggingRest, setLoggingRest] = useState(false);
+
+  const loadWeek = useCallback(async () => {
+    if (!session?.user.id) return;
+    const monday = new Date();
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    const mondayKey = dateKey(monday);
+    const [workoutsRes, restRes] = await Promise.all([
+      supabase
+        .from('workouts')
+        .select('id, ended_at')
+        .eq('user_id', session.user.id)
+        .not('ended_at', 'is', null)
+        .gte('ended_at', monday.toISOString())
+        .order('ended_at', { ascending: true }),
+      supabase
+        .from('rest_days')
+        .select('rest_date')
+        .eq('user_id', session.user.id)
+        .gte('rest_date', mondayKey),
+    ]);
+    const ids: Record<string, string> = {};
+    for (const w of (workoutsRes.data ?? []) as { id: string; ended_at: string }[]) {
+      ids[dateKey(new Date(w.ended_at))] = w.id;
+    }
+    setWeekWorkoutIds(ids);
+    setWeekRestDates(
+      ((restRes.data ?? []) as { rest_date: string }[]).map((r) => r.rest_date)
+    );
+  }, [session?.user.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadWeek();
+    }, [loadWeek])
+  );
+
+  const weekDates = Object.keys(weekWorkoutIds);
+  const todayKey = dateKey(new Date());
+  const workedToday = todayKey in weekWorkoutIds;
+  const restedToday = weekRestDates.includes(todayKey);
+  const restCapReached = weekRestDates.length >= 5;
+  const canLogRest = !workedToday && !restedToday && !restCapReached;
+
+  async function handleLogRestDay() {
+    setLoggingRest(true);
+    try {
+      const { error } = await supabase.rpc('log_rest_day');
+      if (error) throw error;
+      await Promise.all([refreshProfile(), loadWeek()]);
+    } catch (err: any) {
+      Alert.alert('Could not log rest day', err.message);
+    } finally {
+      setLoggingRest(false);
+    }
+  }
 
   async function handleFinish() {
     if (entries.every((e) => e.sets.length === 0)) {
@@ -54,6 +120,7 @@ export default function WorkoutScreen() {
         setExpBeforeWorkout(expBefore);
         setSummary(result);
         refreshProfile();
+        loadWeek();
       }
     } catch (err: any) {
       Alert.alert('Could not finish workout', err.message);
@@ -80,8 +147,24 @@ export default function WorkoutScreen() {
   const streak = profile ? displayStreak(profile.current_streak, profile.last_workout_date) : 0;
 
   if (!workout) {
+    let restHelper: string | null = null;
+    if (restedToday) restHelper = 'Rest day logged — streak safe.';
+    else if (workedToday) restHelper = "You're already logged today.";
+    else if (restCapReached) restHelper = 'Rest day cap (5/week) reached.';
+
     return (
       <SafeAreaView className="flex-1 bg-background">
+        <View className="px-4 pt-3">
+          <View className="rounded-2xl bg-surface p-4">
+            <Text className="mb-3 text-base font-bold text-white">This Week</Text>
+            <WeekTracker
+              workoutDates={weekDates}
+              restDates={weekRestDates}
+              workoutIds={weekWorkoutIds}
+              onDayPress={(id) => router.push(`/workout/${id}`)}
+            />
+          </View>
+        </View>
         <View className="flex-1 items-center justify-center px-8">
           <View className="mb-6 h-24 w-24 items-center justify-center rounded-full border border-border bg-surface">
             <Dumbbell size={40} color="#22C55E" strokeWidth={1.75} />
@@ -103,6 +186,19 @@ export default function WorkoutScreen() {
           >
             <Text className="text-lg font-bold text-background">Start Workout</Text>
           </Pressable>
+          <Pressable
+            className="mt-3 w-full flex-row items-center justify-center gap-2 rounded-2xl border border-border py-4 active:opacity-70 disabled:opacity-40"
+            disabled={!canLogRest || loggingRest}
+            onPress={handleLogRestDay}
+          >
+            <Moon size={18} color="#8B98A9" strokeWidth={2} />
+            <Text className="font-semibold text-muted">
+              {loggingRest ? 'Logging…' : 'Log Rest Day'}
+            </Text>
+          </Pressable>
+          {restHelper && (
+            <Text className="mt-3 text-xs text-muted">{restHelper}</Text>
+          )}
         </View>
         <WorkoutSummaryModal
           summary={summary}
