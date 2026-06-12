@@ -1,7 +1,16 @@
-import { useFocusEffect } from 'expo-router';
-import { Dumbbell, Flame, Layers, Medal, Star, Timer, TrendingUp } from 'lucide-react-native';
+import { router, useFocusEffect } from 'expo-router';
+import {
+  ChevronRight,
+  Dumbbell,
+  Flame,
+  History,
+  Layers,
+  Star,
+  Timer,
+  TrendingUp,
+} from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { WeeklyVolumeChart, type WeekVolume } from '@/components/WeeklyVolumeChart';
@@ -197,6 +206,24 @@ export default function StatsScreen() {
             />
           </View>
         )}
+
+        <Pressable
+          className="mb-4 flex-row items-center gap-3 rounded-2xl bg-surface p-4 active:opacity-70"
+          onPress={() => router.push('/history')}
+        >
+          <View className="h-10 w-10 items-center justify-center rounded-xl bg-surface-2">
+            <History size={20} color="#22C55E" strokeWidth={1.75} />
+          </View>
+          <View className="flex-1">
+            <Text className="font-bold text-white">Workout History</Text>
+            <Text className="text-xs text-muted">
+              {lifetime && lifetime.workouts > 0
+                ? `Browse all ${lifetime.workouts.toLocaleString()} workout${lifetime.workouts === 1 ? '' : 's'}`
+                : 'Your past workouts will appear here'}
+            </Text>
+          </View>
+          <ChevronRight size={18} color="#8B98A9" strokeWidth={2} />
+        </Pressable>
 
         <SectionCard title={`Weekly Volume (${WEEKS_SHOWN} weeks)`}>
           <WeeklyVolumeChart data={weeklyVolume} />
