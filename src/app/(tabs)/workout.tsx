@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Check, Dumbbell, Flame, Plus, Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -83,12 +83,19 @@ export default function WorkoutScreen() {
     return (
       <SafeAreaView className="flex-1 bg-background">
         <View className="flex-1 items-center justify-center px-8">
-          <Text className="mb-2 text-6xl">🏋️</Text>
-          <Text className="mb-1 text-2xl font-bold text-white">Ready to train?</Text>
+          <View className="mb-6 h-24 w-24 items-center justify-center rounded-full border border-border bg-surface">
+            <Dumbbell size={40} color="#22C55E" strokeWidth={1.75} />
+          </View>
+          <Text className="mb-1.5 text-2xl font-bold text-white">Ready to train?</Text>
+          <Text className="mb-6 text-center text-base text-muted">
+            Start a session and log every set as you go.
+          </Text>
           {streak > 0 && (
-            <Text className="mb-8 text-base text-muted">
-              {streak}-day streak — keep it alive! 🔥
-            </Text>
+            <View className="mb-8 flex-row items-center gap-1.5 rounded-full bg-surface px-4 py-2">
+              <Flame size={16} color="#F59E0B" strokeWidth={2} />
+              <Text className="text-sm font-semibold text-white">{streak}-day streak</Text>
+              <Text className="text-sm text-muted">— keep it alive</Text>
+            </View>
           )}
           <Pressable
             className="w-full items-center rounded-2xl bg-primary py-5 active:opacity-80"
@@ -106,40 +113,60 @@ export default function WorkoutScreen() {
     );
   }
 
+  const totalSets = entries.reduce((n, e) => n + e.sets.length, 0);
+  const totalVolume = entries.reduce(
+    (v, e) => v + e.sets.reduce((sum, set) => sum + set.weight * set.reps, 0),
+    0
+  );
+
   return (
     <SafeAreaView className="flex-1 bg-background">
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         className="flex-1"
       >
-        <View className="flex-row items-center justify-between px-4 py-3">
-          <View>
-            <Text className="text-xl font-bold text-white">{workout.title}</Text>
-            <ElapsedTime since={workout.started_at} />
+        <View className="px-4 py-3">
+          <View className="flex-row items-center justify-between">
+            <View className="flex-1 pr-3">
+              <Text className="text-xl font-bold text-white">{workout.title}</Text>
+              <View className="mt-0.5 flex-row items-center gap-1.5">
+                <View className="h-1.5 w-1.5 rounded-full bg-primary" />
+                <ElapsedTime since={workout.started_at} />
+              </View>
+            </View>
+            <View className="flex-row gap-2">
+              <Pressable
+                className="rounded-xl bg-surface px-4 py-2.5 active:opacity-70"
+                onPress={handleDiscard}
+              >
+                <Text className="font-semibold text-danger">Discard</Text>
+              </Pressable>
+              <Pressable
+                className="rounded-xl bg-primary px-4 py-2.5 active:opacity-80 disabled:opacity-50"
+                disabled={finishing}
+                onPress={handleFinish}
+              >
+                <Text className="font-bold text-background">
+                  {finishing ? 'Saving…' : 'Finish'}
+                </Text>
+              </Pressable>
+            </View>
           </View>
-          <View className="flex-row gap-2">
-            <Pressable
-              className="rounded-xl bg-surface px-4 py-2.5 active:opacity-70"
-              onPress={handleDiscard}
-            >
-              <Text className="font-semibold text-danger">Discard</Text>
-            </Pressable>
-            <Pressable
-              className="rounded-xl bg-primary px-4 py-2.5 active:opacity-80 disabled:opacity-50"
-              disabled={finishing}
-              onPress={handleFinish}
-            >
-              <Text className="font-bold text-background">
-                {finishing ? 'Saving…' : 'Finish'}
-              </Text>
-            </Pressable>
+
+          <View className="mt-3 flex-row rounded-2xl bg-surface py-3">
+            <SummaryStat value={String(entries.length)} label="Exercises" />
+            <View className="w-px bg-border" />
+            <SummaryStat value={String(totalSets)} label="Sets" />
+            <View className="w-px bg-border" />
+            <SummaryStat value={totalVolume.toLocaleString()} label="Volume · lbs" />
           </View>
         </View>
 
         <ScrollView className="flex-1 px-4" keyboardShouldPersistTaps="handled">
-          {entries.map((entry) => (
+          {entries.map((entry, index) => (
             <ExerciseBlock
               key={entry.exercise.id}
+              order={index + 1}
               entry={entry}
               onLogSet={async (weight, reps) => {
                 await logSet(entry.exercise.id, weight, reps);
@@ -153,7 +180,7 @@ export default function WorkoutScreen() {
             className="mb-6 mt-1 flex-row items-center justify-center gap-2 rounded-2xl border border-dashed border-border py-4 active:opacity-70"
             onPress={() => setPickerVisible(true)}
           >
-            <Ionicons name="add-circle" size={20} color="#22C55E" />
+            <Plus size={18} color="#22C55E" strokeWidth={2.25} />
             <Text className="font-semibold text-primary">Add Exercise</Text>
           </Pressable>
         </ScrollView>
@@ -177,6 +204,15 @@ export default function WorkoutScreen() {
   );
 }
 
+function SummaryStat({ value, label }: { value: string; label: string }) {
+  return (
+    <View className="flex-1 items-center">
+      <Text className="text-lg font-bold text-white">{value}</Text>
+      <Text className="text-xs text-muted">{label}</Text>
+    </View>
+  );
+}
+
 function ElapsedTime({ since }: { since: string }) {
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -195,10 +231,12 @@ function ElapsedTime({ since }: { since: string }) {
 }
 
 function ExerciseBlock({
+  order,
   entry,
   onLogSet,
   onDeleteSet,
 }: {
+  order: number;
   entry: WorkoutEntry;
   onLogSet: (weight: number, reps: number) => Promise<void>;
   onDeleteSet: (setId: string) => void;
@@ -227,10 +265,24 @@ function ExerciseBlock({
 
   return (
     <View className="mb-3 rounded-2xl bg-surface p-4">
-      <Text className="mb-1 text-base font-bold text-white">{entry.exercise.name}</Text>
-      <Text className="mb-3 text-xs capitalize text-muted">
-        {entry.exercise.muscle_group.replace('_', ' ')}
-      </Text>
+      <View className="mb-3 flex-row items-center">
+        <View className="mr-3 h-8 w-8 items-center justify-center rounded-lg bg-surface-2">
+          <Text className="text-sm font-bold text-primary">{order}</Text>
+        </View>
+        <View className="flex-1">
+          <Text className="text-base font-bold text-white">{entry.exercise.name}</Text>
+          <Text className="text-xs capitalize text-muted">
+            {entry.exercise.muscle_group.replace('_', ' ')}
+          </Text>
+        </View>
+        {entry.sets.length > 0 && (
+          <View className="rounded-full bg-surface-2 px-2.5 py-1">
+            <Text className="text-xs font-semibold text-muted">
+              {entry.sets.length} {entry.sets.length === 1 ? 'set' : 'sets'}
+            </Text>
+          </View>
+        )}
+      </View>
 
       {entry.sets.map((set) => (
         <View
@@ -242,7 +294,7 @@ function ExerciseBlock({
             {set.weight} lbs × {set.reps}
           </Text>
           <Pressable onPress={() => onDeleteSet(set.id)} hitSlop={8}>
-            <Ionicons name="trash-outline" size={16} color="#8B98A9" />
+            <Trash2 size={16} color="#8B98A9" strokeWidth={1.75} />
           </Pressable>
         </View>
       ))}
@@ -269,7 +321,7 @@ function ExerciseBlock({
           disabled={logging}
           onPress={handleLog}
         >
-          <Ionicons name="checkmark" size={20} color="#0B0F14" />
+          <Check size={20} color="#0B0F14" strokeWidth={2.5} />
         </Pressable>
       </View>
     </View>
