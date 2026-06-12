@@ -17,6 +17,7 @@ import { ExercisePicker } from '@/components/ExercisePicker';
 import { RestTimer } from '@/components/RestTimer';
 import { WorkoutSummaryModal } from '@/components/WorkoutSummaryModal';
 import { useActiveWorkout, type WorkoutEntry } from '@/hooks/useActiveWorkout';
+import { displayStreak } from '@/lib/exp';
 import type { WorkoutSummary } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -73,15 +74,17 @@ export default function WorkoutScreen() {
     );
   }
 
+  const streak = profile ? displayStreak(profile.current_streak, profile.last_workout_date) : 0;
+
   if (!workout) {
     return (
       <SafeAreaView className="flex-1 bg-background">
         <View className="flex-1 items-center justify-center px-8">
           <Text className="mb-2 text-6xl">🏋️</Text>
           <Text className="mb-1 text-2xl font-bold text-white">Ready to train?</Text>
-          {profile && profile.current_streak > 0 && (
+          {streak > 0 && (
             <Text className="mb-8 text-base text-muted">
-              {profile.current_streak}-day streak — keep it alive! 🔥
+              {streak}-day streak — keep it alive! 🔥
             </Text>
           )}
           <Pressable

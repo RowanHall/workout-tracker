@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ConsistencyCalendar } from '@/components/ConsistencyCalendar';
 import { ExpBar } from '@/components/ExpBar';
+import { displayStreak } from '@/lib/exp';
 import { VolumeChart, type VolumeByGroup } from '@/components/VolumeChart';
 import { supabase } from '@/lib/supabase';
 import type { Trophy } from '@/lib/types';
@@ -112,7 +113,10 @@ export default function ProfileScreen() {
         <View className="mb-4 rounded-2xl bg-surface p-4">
           <ExpBar totalExp={profile.total_exp} />
           <View className="mt-4 flex-row justify-around">
-            <HeroStat value={`${profile.current_streak}🔥`} label="Streak" />
+            <HeroStat
+              value={`${displayStreak(profile.current_streak, profile.last_workout_date)}🔥`}
+              label="Streak"
+            />
             <HeroStat value={profile.total_exp.toLocaleString()} label="Total EXP" />
             <HeroStat value={String(profile.longest_streak)} label="Best streak" />
           </View>
