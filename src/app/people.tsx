@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
 
@@ -80,7 +81,10 @@ export default function PeopleScreen() {
         renderItem={({ item }) => {
           const isFollowing = followedIds.has(item.id);
           return (
-            <View className="mb-2 flex-row items-center rounded-xl bg-surface px-4 py-3">
+            <Pressable
+              className="mb-2 flex-row items-center rounded-xl bg-surface px-4 py-3 active:opacity-70"
+              onPress={() => router.push(`/user/${item.id}`)}
+            >
               <View className="mr-3">
                 <Avatar
                   url={item.avatar_url}
@@ -108,7 +112,7 @@ export default function PeopleScreen() {
                   {isFollowing ? 'Following' : 'Follow'}
                 </Text>
               </Pressable>
-            </View>
+            </Pressable>
           );
         }}
         ListEmptyComponent={

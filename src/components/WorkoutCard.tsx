@@ -46,21 +46,24 @@ export function WorkoutCard({
   return (
     <View className="mb-3 rounded-2xl bg-surface p-4">
       <Pressable
+        className="mb-3 flex-row items-center active:opacity-70"
+        onPress={() => router.push(`/user/${workout.user_id}`)}
+      >
+        <View className="mr-3">
+          <Avatar url={workout.profiles.avatar_url} name={name} size={40} />
+        </View>
+        <View className="flex-1">
+          <Text className="font-semibold text-white">{name}</Text>
+          <Text className="text-xs text-muted">
+            @{workout.profiles.username} · {timeAgo(workout.ended_at ?? workout.started_at)}
+          </Text>
+        </View>
+      </Pressable>
+
+      <Pressable
         className="active:opacity-70"
         onPress={() => router.push(`/workout/${workout.id}`)}
       >
-        <View className="mb-3 flex-row items-center">
-          <View className="mr-3">
-            <Avatar url={workout.profiles.avatar_url} name={name} size={40} />
-          </View>
-          <View className="flex-1">
-            <Text className="font-semibold text-white">{name}</Text>
-            <Text className="text-xs text-muted">
-              @{workout.profiles.username} · {timeAgo(workout.ended_at ?? workout.started_at)}
-            </Text>
-          </View>
-        </View>
-
         <Text className="mb-2 text-lg font-bold text-white">{workout.title}</Text>
         {prCount > 0 && (
           <View className="mb-2 flex-row items-center gap-1.5 self-start rounded-full bg-accent/20 px-2.5 py-1">

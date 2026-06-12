@@ -1,7 +1,7 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Medal } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
 import { formatDuration, formatVolume, timeAgo } from '@/lib/format';
@@ -110,7 +110,10 @@ export default function WorkoutDetailScreen() {
   return (
     <ScrollView className="flex-1 bg-background" contentContainerClassName="p-4 pb-8">
       <View className="mb-4 rounded-2xl bg-surface p-4">
-        <View className="mb-3 flex-row items-center">
+        <Pressable
+          className="mb-3 flex-row items-center active:opacity-70"
+          onPress={() => router.push(`/user/${workout.user_id}`)}
+        >
           <View className="mr-3">
             <Avatar url={workout.profiles.avatar_url} name={name} size={40} />
           </View>
@@ -120,7 +123,7 @@ export default function WorkoutDetailScreen() {
               @{workout.profiles.username} · {timeAgo(workout.ended_at ?? workout.started_at)}
             </Text>
           </View>
-        </View>
+        </Pressable>
 
         <Text className="mb-3 text-xl font-bold text-white">{workout.title}</Text>
         <View className="flex-row gap-4">

@@ -81,6 +81,15 @@ function RootNavigator() {
             headerTintColor: '#FFFFFF',
           }}
         />
+        <Stack.Screen
+          name="user/[id]"
+          options={{
+            headerShown: true,
+            title: 'Profile',
+            headerStyle: { backgroundColor: '#151B23' },
+            headerTintColor: '#FFFFFF',
+          }}
+        />
       </Stack.Protected>
       <Stack.Protected guard={!session}>
         <Stack.Screen name="(auth)" />
