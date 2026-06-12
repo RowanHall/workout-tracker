@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
+import { Inbox } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,7 +24,7 @@ export default function FeedScreen() {
       .from('workouts')
       .select(
         `*,
-         profiles (username, display_name, current_level),
+         profiles (username, display_name),
          workout_sets (id, is_pr),
          feed_interactions (id, workout_id, user_id, type, content, created_at, profiles (username))`
       )
@@ -102,8 +103,8 @@ export default function FeedScreen() {
         ListEmptyComponent={
           loaded ? (
             <View className="mt-24 items-center px-8">
-              <Text className="mb-2 text-4xl">📭</Text>
-              <Text className="mb-1 text-lg font-bold text-white">Nothing here yet</Text>
+              <Inbox size={40} color="#8B98A9" strokeWidth={1.5} />
+              <Text className="mb-1 mt-3 text-lg font-bold text-white">Nothing here yet</Text>
               <Text className="text-center text-muted">
                 Finish a workout or follow some friends to fill your feed.
               </Text>

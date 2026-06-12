@@ -1,4 +1,5 @@
 import { Link } from 'expo-router';
+import { Target } from 'lucide-react-native';
 import { useState } from 'react';
 import {
   Alert,
@@ -31,10 +32,12 @@ export default function SignIn() {
       className="flex-1 bg-background"
     >
       <View className="flex-1 justify-center px-8">
-        <Text className="mb-1 text-center text-5xl">🏹</Text>
+        <View className="mb-3 items-center">
+          <Target size={48} color="#22C55E" strokeWidth={1.5} />
+        </View>
         <Text className="mb-1 text-center text-3xl font-bold text-white">Arrow</Text>
         <Text className="mb-10 text-center text-base text-muted">
-          Level up your lifts
+          Track your training, set by set
         </Text>
 
         <TextInput

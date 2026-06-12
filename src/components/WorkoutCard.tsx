@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { Medal } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 
@@ -56,18 +57,14 @@ export function WorkoutCard({
               @{workout.profiles.username} · {timeAgo(workout.ended_at ?? workout.started_at)}
             </Text>
           </View>
-          <View className="rounded-full bg-surface-2 px-2.5 py-1">
-            <Text className="text-xs font-bold text-primary">
-              LVL {workout.profiles.current_level}
-            </Text>
-          </View>
         </View>
 
         <Text className="mb-2 text-lg font-bold text-white">{workout.title}</Text>
         {prCount > 0 && (
-          <View className="mb-2 self-start rounded-full bg-accent/20 px-2.5 py-1">
+          <View className="mb-2 flex-row items-center gap-1.5 self-start rounded-full bg-accent/20 px-2.5 py-1">
+            <Medal size={12} color="#F59E0B" strokeWidth={2} />
             <Text className="text-xs font-bold text-accent">
-              🏅 {prCount} PR{prCount > 1 ? 's' : ''}
+              {prCount} PR{prCount > 1 ? 's' : ''}
             </Text>
           </View>
         )}
@@ -78,7 +75,6 @@ export function WorkoutCard({
           {workout.ended_at && (
             <Stat label="Time" value={formatDuration(workout.started_at, workout.ended_at)} />
           )}
-          <Stat label="EXP" value={`+${workout.exp_earned}`} highlight />
         </View>
       </Pressable>
 
@@ -140,21 +136,11 @@ export function WorkoutCard({
   );
 }
 
-function Stat({
-  label,
-  value,
-  highlight,
-}: {
-  label: string;
-  value: string;
-  highlight?: boolean;
-}) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
     <View>
       <Text className="text-xs text-muted">{label}</Text>
-      <Text className={`font-bold ${highlight ? 'text-primary' : 'text-white'}`}>
-        {value}
-      </Text>
+      <Text className="font-bold text-white">{value}</Text>
     </View>
   );
 }

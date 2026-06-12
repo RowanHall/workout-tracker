@@ -19,7 +19,7 @@ import { RestTimer } from '@/components/RestTimer';
 import { WeekTracker } from '@/components/WeekTracker';
 import { WorkoutSummaryModal } from '@/components/WorkoutSummaryModal';
 import { useActiveWorkout, type WorkoutEntry } from '@/hooks/useActiveWorkout';
-import { displayStreak } from '@/lib/exp';
+import { displayStreak } from '@/lib/streak';
 import { dateKey } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 import type { WorkoutSummary } from '@/lib/types';
@@ -42,7 +42,6 @@ export default function WorkoutScreen() {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [restTrigger, setRestTrigger] = useState(0);
   const [summary, setSummary] = useState<WorkoutSummary | null>(null);
-  const [expBeforeWorkout, setExpBeforeWorkout] = useState(0);
   const [finishing, setFinishing] = useState(false);
   const [weekWorkoutIds, setWeekWorkoutIds] = useState<Record<string, string>>({});
   const [weekRestDates, setWeekRestDates] = useState<string[]>([]);
@@ -110,11 +109,9 @@ export default function WorkoutScreen() {
       return;
     }
     setFinishing(true);
-    const expBefore = profile?.total_exp ?? 0;
     try {
       const result = await finish();
       if (result && !result.discarded) {
-        setExpBeforeWorkout(expBefore);
         setSummary(result);
         refreshProfile();
         loadWeek();
@@ -197,11 +194,7 @@ export default function WorkoutScreen() {
             <Text className="mt-3 text-xs text-muted">{restHelper}</Text>
           )}
         </View>
-        <WorkoutSummaryModal
-          summary={summary}
-          previousTotalExp={expBeforeWorkout}
-          onClose={() => setSummary(null)}
-        />
+        <WorkoutSummaryModal summary={summary} onClose={() => setSummary(null)} />
       </SafeAreaView>
     );
   }
@@ -288,11 +281,7 @@ export default function WorkoutScreen() {
         onClose={() => setPickerVisible(false)}
         onSelect={addExercise}
       />
-      <WorkoutSummaryModal
-        summary={summary}
-        previousTotalExp={expBeforeWorkout}
-        onClose={() => setSummary(null)}
-      />
+      <WorkoutSummaryModal summary={summary} onClose={() => setSummary(null)} />
     </SafeAreaView>
   );
 }

@@ -11,13 +11,13 @@ export type MuscleGroup =
   | 'core'
   | 'full_body';
 
+// Levels / EXP / trophies are paused: the columns and tables still exist in
+// the database, but the app no longer reads them, so they are omitted here.
 export interface Profile {
   id: string;
   username: string;
   display_name: string | null;
   avatar_url: string | null;
-  current_level: number;
-  total_exp: number;
   current_streak: number;
   longest_streak: number;
   last_workout_date: string | null;
@@ -39,7 +39,6 @@ export interface Workout {
   ended_at: string | null;
   total_volume: number;
   total_sets: number;
-  exp_earned: number;
 }
 
 export interface WorkoutSet {
@@ -60,8 +59,6 @@ export interface BodyWeight {
   updated_at: string;
 }
 
-export type TrophyTier = 'none' | 'bronze' | 'silver' | 'gold' | 'platinum';
-
 export interface FeedInteraction {
   id: string;
   workout_id: string;
@@ -76,25 +73,18 @@ export interface FeedWorkout extends Workout {
   profiles: {
     username: string;
     display_name: string | null;
-    current_level: number;
   };
   workout_sets: { id: string; is_pr: boolean }[];
   feed_interactions: FeedInteraction[];
 }
 
+/** Payload of the finish_workout RPC. The function also returns paused
+ *  gamification fields (exp_earned, leveled_up, new_tiers, …) which the app
+ *  currently ignores. */
 export interface WorkoutSummary {
   discarded?: boolean;
-  exp_earned: number;
   total_volume: number;
   total_sets: number;
   streak: number;
-  leveled_up: boolean;
-  new_level: number;
   prs: { exercise: string; type: string; value: number }[];
-  new_tiers: {
-    key: string;
-    name: string;
-    icon: string;
-    tier: Exclude<TrophyTier, 'none'>;
-  }[];
 }

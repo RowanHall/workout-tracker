@@ -1,4 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
+import { Medal } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 
@@ -15,7 +16,6 @@ interface WorkoutDetail extends Workout {
   profiles: {
     username: string;
     display_name: string | null;
-    current_level: number;
   };
   workout_sets: DetailSet[];
 }
@@ -72,7 +72,7 @@ export default function WorkoutDetailScreen() {
       .from('workouts')
       .select(
         `*,
-         profiles (username, display_name, current_level),
+         profiles (username, display_name),
          workout_sets (*, exercises (name, muscle_group))`
       )
       .eq('id', id)
@@ -118,11 +118,6 @@ export default function WorkoutDetailScreen() {
               @{workout.profiles.username} · {timeAgo(workout.ended_at ?? workout.started_at)}
             </Text>
           </View>
-          <View className="rounded-full bg-surface-2 px-2.5 py-1">
-            <Text className="text-xs font-bold text-primary">
-              LVL {workout.profiles.current_level}
-            </Text>
-          </View>
         </View>
 
         <Text className="mb-3 text-xl font-bold text-white">{workout.title}</Text>
@@ -132,7 +127,6 @@ export default function WorkoutDetailScreen() {
           {workout.ended_at && (
             <Stat label="Time" value={formatDuration(workout.started_at, workout.ended_at)} />
           )}
-          <Stat label="EXP" value={`+${workout.exp_earned}`} highlight />
         </View>
       </View>
 
@@ -157,8 +151,9 @@ export default function WorkoutDetailScreen() {
                 {Number(set.weight).toLocaleString()} lbs × {set.reps}
               </Text>
               {set.is_pr && (
-                <View className="rounded-full bg-accent/20 px-2.5 py-1">
-                  <Text className="text-xs font-bold text-accent">🏅 PR</Text>
+                <View className="flex-row items-center gap-1 rounded-full bg-accent/20 px-2.5 py-1">
+                  <Medal size={12} color="#F59E0B" strokeWidth={2} />
+                  <Text className="text-xs font-bold text-accent">PR</Text>
                 </View>
               )}
             </View>
@@ -173,21 +168,11 @@ export default function WorkoutDetailScreen() {
   );
 }
 
-function Stat({
-  label,
-  value,
-  highlight,
-}: {
-  label: string;
-  value: string;
-  highlight?: boolean;
-}) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
     <View>
       <Text className="text-xs text-muted">{label}</Text>
-      <Text className={`font-bold ${highlight ? 'text-primary' : 'text-white'}`}>
-        {value}
-      </Text>
+      <Text className="font-bold text-white">{value}</Text>
     </View>
   );
 }

@@ -6,10 +6,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BodyWeightCard } from '@/components/BodyWeightCard';
 import { ConsistencyCalendar } from '@/components/ConsistencyCalendar';
-import { ExpBar } from '@/components/ExpBar';
 import { VolumeChart, type VolumeByGroup } from '@/components/VolumeChart';
 import { WeekTracker } from '@/components/WeekTracker';
-import { displayStreak } from '@/lib/exp';
+import { displayStreak } from '@/lib/streak';
 import { dateKey } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/AuthProvider';
@@ -22,6 +21,7 @@ export default function ProfileScreen() {
   const [restDates, setRestDates] = useState<string[]>([]);
   const [volumeByGroup, setVolumeByGroup] = useState<VolumeByGroup[]>([]);
   const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
+  const [totalWorkouts, setTotalWorkouts] = useState(0);
 
   const loadStats = useCallback(async () => {
     if (!userId) return;
@@ -32,7 +32,7 @@ export default function ProfileScreen() {
     const yearCutoff = new Date();
     yearCutoff.setDate(yearCutoff.getDate() - 372);
 
-    const [workoutsRes, setsRes, followersRes, followingRes, restRes] =
+    const [workoutsRes, setsRes, followersRes, followingRes, restRes, countRes] =
       await Promise.all([
         supabase
           .from('workouts')
@@ -59,6 +59,11 @@ export default function ProfileScreen() {
           .select('rest_date')
           .eq('user_id', userId)
           .gte('rest_date', dateKey(yearCutoff)),
+        supabase
+          .from('workouts')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .not('ended_at', 'is', null),
       ]);
 
     setWorkoutDates(
@@ -82,6 +87,7 @@ export default function ProfileScreen() {
       followers: followersRes.count ?? 0,
       following: followingRes.count ?? 0,
     });
+    setTotalWorkouts(countRes.count ?? 0);
   }, [userId]);
 
   useFocusEffect(
@@ -117,14 +123,13 @@ export default function ProfileScreen() {
         </View>
 
         <View className="mb-4 rounded-2xl bg-surface p-4">
-          <ExpBar totalExp={profile.total_exp} />
-          <View className="mt-4 flex-row justify-around">
+          <View className="flex-row justify-around">
             <HeroStat
               value={String(displayStreak(profile.current_streak, profile.last_workout_date))}
               label="Streak"
               icon={<Flame size={16} color="#F59E0B" strokeWidth={1.75} />}
             />
-            <HeroStat value={profile.total_exp.toLocaleString()} label="Total EXP" />
+            <HeroStat value={totalWorkouts.toLocaleString()} label="Workouts" />
             <HeroStat value={String(profile.longest_streak)} label="Best streak" />
           </View>
         </View>

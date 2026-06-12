@@ -29,7 +29,7 @@ export default function PeopleScreen() {
         .from('profiles')
         .select('*')
         .neq('id', userId ?? '')
-        .order('total_exp', { ascending: false })
+        .order('longest_streak', { ascending: false })
         .limit(25);
       if (search.trim()) {
         query = query.ilike('username', `%${search.trim()}%`);
@@ -89,9 +89,7 @@ export default function PeopleScreen() {
                 <Text className="font-semibold text-white">
                   {item.display_name ?? item.username}
                 </Text>
-                <Text className="text-xs text-muted">
-                  @{item.username} · LVL {item.current_level}
-                </Text>
+                <Text className="text-xs text-muted">@{item.username}</Text>
               </View>
               <Pressable
                 className={`rounded-full px-4 py-2 active:opacity-70 ${
