@@ -1,5 +1,4 @@
 import { Link } from 'expo-router';
-import { Target } from 'lucide-react-native';
 import { useState } from 'react';
 import {
   Alert,
@@ -11,6 +10,7 @@ import {
   View,
 } from 'react-native';
 
+import { KovaLogo } from '@/components/KovaLogo';
 import { supabase } from '@/lib/supabase';
 
 export default function SignIn() {
@@ -32,12 +32,9 @@ export default function SignIn() {
       className="flex-1 bg-background"
     >
       <View className="flex-1 justify-center px-8">
-        <View className="mb-3 items-center">
-          <Target size={48} color="#22C55E" strokeWidth={1.5} />
+        <View className="mb-2 items-center">
+          <KovaLogo size={44} />
         </View>
-        <Text className="mb-1 text-center text-4xl font-extrabold uppercase tracking-[3px] text-white">
-          Kova
-        </Text>
         <Text className="mb-10 text-center text-base text-muted">
           Track your training, set by set
         </Text>

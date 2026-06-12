@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 
+import { KovaLogo } from '@/components/KovaLogo';
 import { supabase } from '@/lib/supabase';
 
 export default function SignUp() {
@@ -57,12 +58,12 @@ export default function SignUp() {
       className="flex-1 bg-background"
     >
       <View className="flex-1 justify-center px-8">
-        <Text className="mb-1 text-center text-sm font-semibold uppercase tracking-[3px] text-muted">
+        <Text className="mb-2 text-center text-sm font-semibold uppercase tracking-[3px] text-muted">
           Join
         </Text>
-        <Text className="mb-1 text-center text-4xl font-extrabold uppercase tracking-[3px] text-white">
-          Kova
-        </Text>
+        <View className="mb-2 items-center">
+          <KovaLogo size={44} />
+        </View>
         <Text className="mb-10 text-center text-base text-muted">
           Track every workout, set by set
         </Text>

@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { KovaLogo } from '@/components/KovaLogo';
 import { WorkoutCard } from '@/components/WorkoutCard';
 import { supabase } from '@/lib/supabase';
 import type { FeedWorkout } from '@/lib/types';
@@ -75,7 +76,7 @@ export default function FeedScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background">
       <View className="flex-row items-center justify-between px-4 py-3">
-        <Text className="text-2xl font-extrabold uppercase tracking-[2px] text-white">Kova</Text>
+        <KovaLogo size={24} />
         <Pressable
           className="flex-row items-center gap-1.5 rounded-full bg-surface px-3.5 py-2 active:opacity-70"
           onPress={() => router.push('/people')}
