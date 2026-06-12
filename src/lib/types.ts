@@ -52,6 +52,14 @@ export interface WorkoutSet {
   is_pr: boolean;
 }
 
+export interface BodyWeight {
+  user_id: string;
+  recorded_on: string;
+  weight: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export type TrophyTier = 'none' | 'bronze' | 'silver' | 'gold' | 'platinum';
 
 export interface FeedInteraction {

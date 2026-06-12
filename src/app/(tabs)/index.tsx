@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BodyWeightCard } from '@/components/BodyWeightCard';
 import { ConsistencyCalendar } from '@/components/ConsistencyCalendar';
 import { ExpBar } from '@/components/ExpBar';
 import { VolumeChart, type VolumeByGroup } from '@/components/VolumeChart';
@@ -135,6 +136,8 @@ export default function ProfileScreen() {
         <SectionCard title="Consistency">
           <ConsistencyCalendar workoutDates={workoutDates} />
         </SectionCard>
+
+        <BodyWeightCard userId={userId} />
 
         <SectionCard title="Volume by Muscle (90 days)">
           <VolumeChart data={volumeByGroup} />
