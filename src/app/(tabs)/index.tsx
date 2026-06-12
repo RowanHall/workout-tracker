@@ -133,7 +133,7 @@ export default function ProfileScreen() {
         </View>
 
         <View className="mb-4 rounded-2xl bg-surface p-4">
-          <View className="flex-row justify-around">
+          <View className="flex-row">
             <HeroStat
               value={String(displayStreak(profile.current_streak, profile.last_workout_date))}
               label="Streak"
@@ -172,7 +172,7 @@ function HeroStat({
   icon?: React.ReactNode;
 }) {
   return (
-    <View className="items-center">
+    <View className="flex-1 items-center">
       <View className="flex-row items-center gap-1">
         <Text className="text-2xl font-extrabold text-white">{value}</Text>
         {icon}
