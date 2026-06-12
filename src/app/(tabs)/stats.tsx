@@ -225,6 +225,22 @@ export default function StatsScreen() {
           <ChevronRight size={18} color="#8B98A9" strokeWidth={2} />
         </Pressable>
 
+        <Pressable
+          className="mb-4 flex-row items-center gap-3 rounded-2xl bg-surface p-4 active:opacity-70"
+          onPress={() => router.push('/exercises')}
+        >
+          <View className="h-10 w-10 items-center justify-center rounded-xl bg-surface-2">
+            <Dumbbell size={20} color="#22C55E" strokeWidth={1.75} />
+          </View>
+          <View className="flex-1">
+            <Text className="font-bold text-white">Exercises</Text>
+            <Text className="text-xs text-muted">
+              Per-exercise 1RM trends, PRs, and maxes
+            </Text>
+          </View>
+          <ChevronRight size={18} color="#8B98A9" strokeWidth={2} />
+        </Pressable>
+
         <SectionCard title={`Weekly Volume (${WEEKS_SHOWN} weeks)`}>
           <WeeklyVolumeChart data={weeklyVolume} />
         </SectionCard>

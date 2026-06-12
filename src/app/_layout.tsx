@@ -63,6 +63,24 @@ function RootNavigator() {
             headerTintColor: '#FFFFFF',
           }}
         />
+        <Stack.Screen
+          name="exercises"
+          options={{
+            headerShown: true,
+            title: 'Exercises',
+            headerStyle: { backgroundColor: '#151B23' },
+            headerTintColor: '#FFFFFF',
+          }}
+        />
+        <Stack.Screen
+          name="exercise/[id]"
+          options={{
+            headerShown: true,
+            title: 'Exercise',
+            headerStyle: { backgroundColor: '#151B23' },
+            headerTintColor: '#FFFFFF',
+          }}
+        />
       </Stack.Protected>
       <Stack.Protected guard={!session}>
         <Stack.Screen name="(auth)" />
