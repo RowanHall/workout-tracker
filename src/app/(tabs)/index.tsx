@@ -18,6 +18,7 @@ export default function ProfileScreen() {
   const userId = session?.user.id;
 
   const [workoutDates, setWorkoutDates] = useState<string[]>([]);
+  const [restDates, setRestDates] = useState<string[]>([]);
   const [volumeByGroup, setVolumeByGroup] = useState<VolumeByGroup[]>([]);
   const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
 
@@ -30,7 +31,7 @@ export default function ProfileScreen() {
     const yearCutoff = new Date();
     yearCutoff.setDate(yearCutoff.getDate() - 372);
 
-    const [workoutsRes, setsRes, followersRes, followingRes] =
+    const [workoutsRes, setsRes, followersRes, followingRes, restRes] =
       await Promise.all([
         supabase
           .from('workouts')
@@ -52,11 +53,17 @@ export default function ProfileScreen() {
           .from('social_follows')
           .select('*', { count: 'exact', head: true })
           .eq('follower_id', userId),
+        supabase
+          .from('rest_days')
+          .select('rest_date')
+          .eq('user_id', userId)
+          .gte('rest_date', dateKey(yearCutoff)),
       ]);
 
     setWorkoutDates(
       (workoutsRes.data ?? []).map((w) => dateKey(new Date(w.ended_at as string)))
     );
+    setRestDates(((restRes.data ?? []) as { rest_date: string }[]).map((r) => r.rest_date));
 
     const volumes = new Map<string, number>();
     for (const row of (setsRes.data as any[]) ?? []) {
@@ -122,7 +129,7 @@ export default function ProfileScreen() {
         </View>
 
         <SectionCard title="This Week">
-          <WeekTracker workoutDates={workoutDates} />
+          <WeekTracker workoutDates={workoutDates} restDates={restDates} />
         </SectionCard>
 
         <SectionCard title="Consistency">
