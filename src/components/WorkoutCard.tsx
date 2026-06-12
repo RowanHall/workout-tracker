@@ -139,8 +139,10 @@ export function WorkoutCard({
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <View>
-      <Text className="text-xs text-muted">{label}</Text>
-      <Text className="font-bold text-white">{value}</Text>
+      <Text className="text-[10px] font-semibold uppercase tracking-wider text-muted">
+        {label}
+      </Text>
+      <Text className="text-base font-extrabold text-white">{value}</Text>
     </View>
   );
 }

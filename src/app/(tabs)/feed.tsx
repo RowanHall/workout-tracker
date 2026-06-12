@@ -75,7 +75,7 @@ export default function FeedScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background">
       <View className="flex-row items-center justify-between px-4 py-3">
-        <Text className="text-2xl font-extrabold text-white">Arrow</Text>
+        <Text className="text-2xl font-extrabold uppercase tracking-[2px] text-white">Kova</Text>
         <Pressable
           className="flex-row items-center gap-1.5 rounded-full bg-surface px-3.5 py-2 active:opacity-70"
           onPress={() => router.push('/people')}

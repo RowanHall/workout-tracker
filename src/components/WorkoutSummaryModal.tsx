@@ -115,10 +115,12 @@ function SummaryStat({
 }) {
   return (
     <View className="items-center">
-      <Text className={`text-lg font-bold ${highlight ? 'text-accent' : 'text-white'}`}>
+      <Text className={`text-2xl font-extrabold ${highlight ? 'text-accent' : 'text-white'}`}>
         {value}
       </Text>
-      <Text className="text-xs text-muted">{label}</Text>
+      <Text className="mt-0.5 text-[11px] font-semibold uppercase tracking-wider text-muted">
+        {label}
+      </Text>
     </View>
   );
 }

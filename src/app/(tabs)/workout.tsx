@@ -289,8 +289,10 @@ export default function WorkoutScreen() {
 function SummaryStat({ value, label }: { value: string; label: string }) {
   return (
     <View className="flex-1 items-center">
-      <Text className="text-lg font-bold text-white">{value}</Text>
-      <Text className="text-xs text-muted">{label}</Text>
+      <Text className="text-xl font-extrabold text-white">{value}</Text>
+      <Text className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
+        {label}
+      </Text>
     </View>
   );
 }

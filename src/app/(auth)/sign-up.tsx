@@ -57,11 +57,14 @@ export default function SignUp() {
       className="flex-1 bg-background"
     >
       <View className="flex-1 justify-center px-8">
-        <Text className="mb-1 text-center text-3xl font-bold text-white">
-          Join Arrow
+        <Text className="mb-1 text-center text-sm font-semibold uppercase tracking-[3px] text-muted">
+          Join
+        </Text>
+        <Text className="mb-1 text-center text-4xl font-extrabold uppercase tracking-[3px] text-white">
+          Kova
         </Text>
         <Text className="mb-10 text-center text-base text-muted">
-          Earn EXP every time you train
+          Track every workout, set by set
         </Text>
 
         <TextInput

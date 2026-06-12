@@ -35,7 +35,9 @@ export default function SignIn() {
         <View className="mb-3 items-center">
           <Target size={48} color="#22C55E" strokeWidth={1.5} />
         </View>
-        <Text className="mb-1 text-center text-3xl font-bold text-white">Arrow</Text>
+        <Text className="mb-1 text-center text-4xl font-extrabold uppercase tracking-[3px] text-white">
+          Kova
+        </Text>
         <Text className="mb-10 text-center text-base text-muted">
           Track your training, set by set
         </Text>

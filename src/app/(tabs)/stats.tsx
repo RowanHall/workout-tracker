@@ -375,10 +375,12 @@ function formatMinutes(minutes: number): string {
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
     <View className="w-[48.5%] rounded-2xl bg-surface p-4">
-      <Text className="text-lg font-bold text-white" numberOfLines={1}>
+      <Text className="text-xl font-extrabold text-white" numberOfLines={1}>
         {value}
       </Text>
-      <Text className="text-xs text-muted">{label}</Text>
+      <Text className="mt-0.5 text-[11px] font-semibold uppercase tracking-wider text-muted">
+        {label}
+      </Text>
     </View>
   );
 }
@@ -386,10 +388,12 @@ function StatTile({ label, value }: { label: string; value: string }) {
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
     <View className="w-[48.5%] rounded-xl bg-surface-2 px-3 py-2.5">
-      <Text className="text-base font-bold text-white" numberOfLines={1}>
+      <Text className="text-base font-extrabold text-white" numberOfLines={1}>
         {value}
       </Text>
-      <Text className="text-xs text-muted">{label}</Text>
+      <Text className="mt-0.5 text-[11px] font-semibold uppercase tracking-wider text-muted">
+        {label}
+      </Text>
     </View>
   );
 }

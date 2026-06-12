@@ -174,10 +174,12 @@ function HeroStat({
   return (
     <View className="items-center">
       <View className="flex-row items-center gap-1">
-        <Text className="text-lg font-bold text-white">{value}</Text>
+        <Text className="text-2xl font-extrabold text-white">{value}</Text>
         {icon}
       </View>
-      <Text className="text-xs text-muted">{label}</Text>
+      <Text className="mt-0.5 text-[11px] font-semibold uppercase tracking-wider text-muted">
+        {label}
+      </Text>
     </View>
   );
 }
