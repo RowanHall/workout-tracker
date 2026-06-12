@@ -34,7 +34,7 @@ export function WeightChart({ data }: { data: WeightPoint[] }) {
   if (data.length === 0) {
     return (
       <View onLayout={onLayout} className="h-[150px] items-center justify-center">
-        <Text className="text-muted">Log your weight to start tracking it here.</Text>
+        <Text className="text-muted">Log your weight in Settings to see your trend here.</Text>
       </View>
     );
   }

@@ -1,5 +1,5 @@
-import { useFocusEffect } from 'expo-router';
-import { Flame } from 'lucide-react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { Flame, Settings } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -102,7 +102,17 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background">
       <ScrollView contentContainerClassName="px-4 pb-8">
-        <View className="mb-4 mt-3 items-center">
+        <View className="flex-row justify-end pt-2">
+          <Pressable
+            className="p-1 active:opacity-70"
+            onPress={() => router.push('/settings')}
+            hitSlop={8}
+          >
+            <Settings size={22} color="#8B98A9" strokeWidth={1.75} />
+          </Pressable>
+        </View>
+
+        <View className="mb-4 items-center">
           <View className="mb-3 h-20 w-20 items-center justify-center rounded-full bg-primary-dim">
             <Text className="text-3xl font-bold text-white">
               {name.charAt(0).toUpperCase()}
@@ -147,13 +157,6 @@ export default function ProfileScreen() {
         <SectionCard title="Volume by Muscle (90 days)">
           <VolumeChart data={volumeByGroup} />
         </SectionCard>
-
-        <Pressable
-          className="mt-2 items-center rounded-xl border border-border py-3.5 active:opacity-70"
-          onPress={() => supabase.auth.signOut()}
-        >
-          <Text className="font-semibold text-danger">Sign Out</Text>
-        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );

@@ -2,6 +2,11 @@ export function formatVolume(volume: number): string {
   return `${Math.round(volume).toLocaleString()} lbs`;
 }
 
+/** Body weight: drop a trailing .0 but keep one decimal otherwise. */
+export function formatWeight(weight: number): string {
+  return Number.isInteger(weight) ? String(weight) : weight.toFixed(1);
+}
+
 export function formatDuration(startIso: string, endIso: string): string {
   const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
   const mins = Math.max(1, Math.round(ms / 60000));
