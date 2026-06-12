@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 
@@ -41,40 +42,45 @@ export function WorkoutCard({
 
   return (
     <View className="mb-3 rounded-2xl bg-surface p-4">
-      <View className="mb-3 flex-row items-center">
-        <View className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-primary-dim">
-          <Text className="font-bold text-white">{name.charAt(0).toUpperCase()}</Text>
+      <Pressable
+        className="active:opacity-70"
+        onPress={() => router.push(`/workout/${workout.id}`)}
+      >
+        <View className="mb-3 flex-row items-center">
+          <View className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-primary-dim">
+            <Text className="font-bold text-white">{name.charAt(0).toUpperCase()}</Text>
+          </View>
+          <View className="flex-1">
+            <Text className="font-semibold text-white">{name}</Text>
+            <Text className="text-xs text-muted">
+              @{workout.profiles.username} · {timeAgo(workout.ended_at ?? workout.started_at)}
+            </Text>
+          </View>
+          <View className="rounded-full bg-surface-2 px-2.5 py-1">
+            <Text className="text-xs font-bold text-primary">
+              LVL {workout.profiles.current_level}
+            </Text>
+          </View>
         </View>
-        <View className="flex-1">
-          <Text className="font-semibold text-white">{name}</Text>
-          <Text className="text-xs text-muted">
-            @{workout.profiles.username} · {timeAgo(workout.ended_at ?? workout.started_at)}
-          </Text>
-        </View>
-        <View className="rounded-full bg-surface-2 px-2.5 py-1">
-          <Text className="text-xs font-bold text-primary">
-            LVL {workout.profiles.current_level}
-          </Text>
-        </View>
-      </View>
 
-      <Text className="mb-2 text-lg font-bold text-white">{workout.title}</Text>
-      {prCount > 0 && (
-        <View className="mb-2 self-start rounded-full bg-accent/20 px-2.5 py-1">
-          <Text className="text-xs font-bold text-accent">
-            🏅 {prCount} PR{prCount > 1 ? 's' : ''}
-          </Text>
-        </View>
-      )}
-
-      <View className="mb-3 flex-row gap-4">
-        <Stat label="Volume" value={formatVolume(workout.total_volume)} />
-        <Stat label="Sets" value={String(workout.total_sets)} />
-        {workout.ended_at && (
-          <Stat label="Time" value={formatDuration(workout.started_at, workout.ended_at)} />
+        <Text className="mb-2 text-lg font-bold text-white">{workout.title}</Text>
+        {prCount > 0 && (
+          <View className="mb-2 self-start rounded-full bg-accent/20 px-2.5 py-1">
+            <Text className="text-xs font-bold text-accent">
+              🏅 {prCount} PR{prCount > 1 ? 's' : ''}
+            </Text>
+          </View>
         )}
-        <Stat label="EXP" value={`+${workout.exp_earned}`} highlight />
-      </View>
+
+        <View className="mb-3 flex-row gap-4">
+          <Stat label="Volume" value={formatVolume(workout.total_volume)} />
+          <Stat label="Sets" value={String(workout.total_sets)} />
+          {workout.ended_at && (
+            <Stat label="Time" value={formatDuration(workout.started_at, workout.ended_at)} />
+          )}
+          <Stat label="EXP" value={`+${workout.exp_earned}`} highlight />
+        </View>
+      </Pressable>
 
       <View className="flex-row items-center gap-5 border-t border-border pt-3">
         <Pressable

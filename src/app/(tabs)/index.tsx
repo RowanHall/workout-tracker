@@ -1,116 +1,174 @@
-import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
+import { Flame } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { WorkoutCard } from '@/components/WorkoutCard';
+import { ConsistencyCalendar } from '@/components/ConsistencyCalendar';
+import { ExpBar } from '@/components/ExpBar';
+import { VolumeChart, type VolumeByGroup } from '@/components/VolumeChart';
+import { WeekTracker } from '@/components/WeekTracker';
+import { displayStreak } from '@/lib/exp';
+import { dateKey } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
-import type { FeedWorkout } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
 
-export default function FeedScreen() {
-  const { session } = useAuth();
+export default function ProfileScreen() {
+  const { session, profile, refreshProfile } = useAuth();
   const userId = session?.user.id;
-  const [feed, setFeed] = useState<FeedWorkout[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loaded, setLoaded] = useState(false);
 
-  const loadFeed = useCallback(async () => {
-    // RLS limits visible workouts to the user's own and those of people
-    // they follow, so no explicit user filter is needed here.
-    const { data } = await supabase
-      .from('workouts')
-      .select(
-        `*,
-         profiles (username, display_name, current_level),
-         workout_sets (id, is_pr),
-         feed_interactions (id, workout_id, user_id, type, content, created_at, profiles (username))`
-      )
-      .not('ended_at', 'is', null)
-      .order('ended_at', { ascending: false })
-      .limit(30);
-    setFeed((data as unknown as FeedWorkout[]) ?? []);
-    setLoaded(true);
-  }, []);
+  const [workoutDates, setWorkoutDates] = useState<string[]>([]);
+  const [volumeByGroup, setVolumeByGroup] = useState<VolumeByGroup[]>([]);
+  const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
+
+  const loadStats = useCallback(async () => {
+    if (!userId) return;
+    refreshProfile();
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 90);
+    const yearCutoff = new Date();
+    yearCutoff.setDate(yearCutoff.getDate() - 372);
+
+    const [workoutsRes, setsRes, followersRes, followingRes] =
+      await Promise.all([
+        supabase
+          .from('workouts')
+          .select('ended_at')
+          .eq('user_id', userId)
+          .not('ended_at', 'is', null)
+          .gte('ended_at', yearCutoff.toISOString()),
+        supabase
+          .from('workout_sets')
+          .select('weight, reps, exercises (muscle_group), workouts!inner (user_id, ended_at)')
+          .eq('workouts.user_id', userId)
+          .not('workouts.ended_at', 'is', null)
+          .gte('created_at', cutoff.toISOString()),
+        supabase
+          .from('social_follows')
+          .select('*', { count: 'exact', head: true })
+          .eq('followed_id', userId),
+        supabase
+          .from('social_follows')
+          .select('*', { count: 'exact', head: true })
+          .eq('follower_id', userId),
+      ]);
+
+    setWorkoutDates(
+      (workoutsRes.data ?? []).map((w) => dateKey(new Date(w.ended_at as string)))
+    );
+
+    const volumes = new Map<string, number>();
+    for (const row of (setsRes.data as any[]) ?? []) {
+      const group = row.exercises?.muscle_group;
+      if (!group) continue;
+      volumes.set(group, (volumes.get(group) ?? 0) + row.weight * row.reps);
+    }
+    setVolumeByGroup(
+      [...volumes.entries()]
+        .map(([group, volume]) => ({ group, volume }))
+        .sort((a, b) => b.volume - a.volume)
+    );
+
+    setFollowCounts({
+      followers: followersRes.count ?? 0,
+      following: followingRes.count ?? 0,
+    });
+  }, [userId]);
 
   useFocusEffect(
     useCallback(() => {
-      loadFeed();
-    }, [loadFeed])
+      loadStats();
+    }, [loadStats])
   );
 
-  async function handleRefresh() {
-    setRefreshing(true);
-    await loadFeed();
-    setRefreshing(false);
-  }
-
-  async function toggleCheer(workout: FeedWorkout, hasCheered: boolean) {
-    if (!userId) return;
-    if (hasCheered) {
-      await supabase
-        .from('feed_interactions')
-        .delete()
-        .eq('workout_id', workout.id)
-        .eq('user_id', userId)
-        .eq('type', 'cheer');
-    } else {
-      await supabase
-        .from('feed_interactions')
-        .insert({ workout_id: workout.id, user_id: userId, type: 'cheer' });
-    }
-    loadFeed();
-  }
-
-  async function addComment(workout: FeedWorkout, content: string) {
-    if (!userId) return;
-    await supabase
-      .from('feed_interactions')
-      .insert({ workout_id: workout.id, user_id: userId, type: 'comment', content });
-    await loadFeed();
-  }
+  if (!profile) return null;
+  const name = profile.display_name ?? profile.username;
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="flex-row items-center justify-between px-4 py-3">
-        <Text className="text-2xl font-extrabold text-white">Arrow</Text>
-        <Pressable
-          className="flex-row items-center gap-1.5 rounded-full bg-surface px-3.5 py-2 active:opacity-70"
-          onPress={() => router.push('/people')}
-        >
-          <Ionicons name="person-add" size={16} color="#22C55E" />
-          <Text className="text-sm font-semibold text-primary">Find Friends</Text>
-        </Pressable>
-      </View>
+      <ScrollView contentContainerClassName="px-4 pb-8">
+        <View className="mb-4 mt-3 items-center">
+          <View className="mb-3 h-20 w-20 items-center justify-center rounded-full bg-primary-dim">
+            <Text className="text-3xl font-bold text-white">
+              {name.charAt(0).toUpperCase()}
+            </Text>
+          </View>
+          <Text className="text-2xl font-bold text-white">{name}</Text>
+          <Text className="text-sm text-muted">@{profile.username}</Text>
+          <View className="mt-2 flex-row gap-5">
+            <Text className="text-sm text-muted">
+              <Text className="font-bold text-white">{followCounts.followers}</Text>{' '}
+              followers
+            </Text>
+            <Text className="text-sm text-muted">
+              <Text className="font-bold text-white">{followCounts.following}</Text>{' '}
+              following
+            </Text>
+          </View>
+        </View>
 
-      <FlatList
-        data={feed}
-        keyExtractor={(item) => item.id}
-        contentContainerClassName="px-4 pb-4"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#22C55E" />
-        }
-        renderItem={({ item }) => (
-          <WorkoutCard
-            workout={item}
-            currentUserId={userId ?? ''}
-            onToggleCheer={toggleCheer}
-            onAddComment={addComment}
-          />
-        )}
-        ListEmptyComponent={
-          loaded ? (
-            <View className="mt-24 items-center px-8">
-              <Text className="mb-2 text-4xl">📭</Text>
-              <Text className="mb-1 text-lg font-bold text-white">Nothing here yet</Text>
-              <Text className="text-center text-muted">
-                Finish a workout or follow some friends to fill your feed.
-              </Text>
-            </View>
-          ) : null
-        }
-      />
+        <View className="mb-4 rounded-2xl bg-surface p-4">
+          <ExpBar totalExp={profile.total_exp} />
+          <View className="mt-4 flex-row justify-around">
+            <HeroStat
+              value={String(displayStreak(profile.current_streak, profile.last_workout_date))}
+              label="Streak"
+              icon={<Flame size={16} color="#F59E0B" strokeWidth={1.75} />}
+            />
+            <HeroStat value={profile.total_exp.toLocaleString()} label="Total EXP" />
+            <HeroStat value={String(profile.longest_streak)} label="Best streak" />
+          </View>
+        </View>
+
+        <SectionCard title="This Week">
+          <WeekTracker workoutDates={workoutDates} />
+        </SectionCard>
+
+        <SectionCard title="Consistency">
+          <ConsistencyCalendar workoutDates={workoutDates} />
+        </SectionCard>
+
+        <SectionCard title="Volume by Muscle (90 days)">
+          <VolumeChart data={volumeByGroup} />
+        </SectionCard>
+
+        <Pressable
+          className="mt-2 items-center rounded-xl border border-border py-3.5 active:opacity-70"
+          onPress={() => supabase.auth.signOut()}
+        >
+          <Text className="font-semibold text-danger">Sign Out</Text>
+        </Pressable>
+      </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function HeroStat({
+  value,
+  label,
+  icon,
+}: {
+  value: string;
+  label: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <View className="items-center">
+      <View className="flex-row items-center gap-1">
+        <Text className="text-lg font-bold text-white">{value}</Text>
+        {icon}
+      </View>
+      <Text className="text-xs text-muted">{label}</Text>
+    </View>
+  );
+}
+
+function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View className="mb-4 rounded-2xl bg-surface p-4">
+      <Text className="mb-3 text-base font-bold text-white">{title}</Text>
+      {children}
+    </View>
   );
 }

@@ -1,4 +1,4 @@
-import type { Session } from '@supabase/supabase-js';
+import type { Session, User } from '@supabase/supabase-js';
 import {
   createContext,
   useCallback,
@@ -30,13 +30,43 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = useCallback(async (userId: string) => {
+  const fetchProfile = useCallback(async (user: User) => {
     const { data } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', userId)
+      .eq('id', user.id)
+      .maybeSingle();
+    if (data) {
+      setProfile(data as Profile);
+      return;
+    }
+    // Accounts created before the profile trigger existed have no profiles
+    // row; create one here so legacy sign-ins still work.
+    const fallback = `user_${user.id.replace(/-/g, '').slice(0, 8)}`;
+    const fromEmail = (user.email ?? '')
+      .split('@')[0]
+      .replace(/[^a-zA-Z0-9_]/g, '')
+      .slice(0, 24);
+    const username =
+      (user.user_metadata?.username as string | undefined) ??
+      (fromEmail.length >= 3 ? fromEmail : fallback);
+    const displayName =
+      (user.user_metadata?.display_name as string | undefined) ?? username;
+
+    let { data: created } = await supabase
+      .from('profiles')
+      .insert({ id: user.id, username, display_name: displayName })
+      .select()
       .single();
-    setProfile((data as Profile) ?? null);
+    if (!created && username !== fallback) {
+      // Username taken — retry with a generated handle.
+      ({ data: created } = await supabase
+        .from('profiles')
+        .insert({ id: user.id, username: fallback, display_name: displayName })
+        .select()
+        .single());
+    }
+    setProfile((created as Profile) ?? null);
   }, []);
 
   useEffect(() => {
@@ -52,14 +82,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     if (session?.user) {
-      fetchProfile(session.user.id);
+      fetchProfile(session.user);
     } else {
       setProfile(null);
     }
   }, [session?.user?.id, fetchProfile]);
 
   const refreshProfile = useCallback(async () => {
-    if (session?.user) await fetchProfile(session.user.id);
+    if (session?.user) await fetchProfile(session.user);
   }, [session?.user?.id, fetchProfile]);
 
   return (
