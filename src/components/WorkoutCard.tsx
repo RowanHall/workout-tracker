@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Medal } from 'lucide-react-native';
+
+import { Avatar } from '@/components/Avatar';
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 
@@ -48,8 +50,8 @@ export function WorkoutCard({
         onPress={() => router.push(`/workout/${workout.id}`)}
       >
         <View className="mb-3 flex-row items-center">
-          <View className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-primary-dim">
-            <Text className="font-bold text-white">{name.charAt(0).toUpperCase()}</Text>
+          <View className="mr-3">
+            <Avatar url={workout.profiles.avatar_url} name={name} size={40} />
           </View>
           <View className="flex-1">
             <Text className="font-semibold text-white">{name}</Text>

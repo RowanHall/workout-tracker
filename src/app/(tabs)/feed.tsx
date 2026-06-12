@@ -25,7 +25,7 @@ export default function FeedScreen() {
       .from('workouts')
       .select(
         `*,
-         profiles (username, display_name),
+         profiles (username, display_name, avatar_url),
          workout_sets (id, is_pr),
          feed_interactions (id, workout_id, user_id, type, content, created_at, profiles (username))`
       )

@@ -3,6 +3,7 @@ import { Medal } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 
+import { Avatar } from '@/components/Avatar';
 import { formatDuration, formatVolume, timeAgo } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 import type { MuscleGroup, Workout, WorkoutSet } from '@/lib/types';
@@ -16,6 +17,7 @@ interface WorkoutDetail extends Workout {
   profiles: {
     username: string;
     display_name: string | null;
+    avatar_url: string | null;
   };
   workout_sets: DetailSet[];
 }
@@ -72,7 +74,7 @@ export default function WorkoutDetailScreen() {
       .from('workouts')
       .select(
         `*,
-         profiles (username, display_name),
+         profiles (username, display_name, avatar_url),
          workout_sets (*, exercises (name, muscle_group))`
       )
       .eq('id', id)
@@ -109,8 +111,8 @@ export default function WorkoutDetailScreen() {
     <ScrollView className="flex-1 bg-background" contentContainerClassName="p-4 pb-8">
       <View className="mb-4 rounded-2xl bg-surface p-4">
         <View className="mb-3 flex-row items-center">
-          <View className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-primary-dim">
-            <Text className="font-bold text-white">{name.charAt(0).toUpperCase()}</Text>
+          <View className="mr-3">
+            <Avatar url={workout.profiles.avatar_url} name={name} size={40} />
           </View>
           <View className="flex-1">
             <Text className="font-semibold text-white">{name}</Text>

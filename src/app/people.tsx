@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
 
+import { Avatar } from '@/components/Avatar';
 import { supabase } from '@/lib/supabase';
 import type { Profile } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
@@ -80,10 +81,12 @@ export default function PeopleScreen() {
           const isFollowing = followedIds.has(item.id);
           return (
             <View className="mb-2 flex-row items-center rounded-xl bg-surface px-4 py-3">
-              <View className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-primary-dim">
-                <Text className="font-bold text-white">
-                  {(item.display_name ?? item.username).charAt(0).toUpperCase()}
-                </Text>
+              <View className="mr-3">
+                <Avatar
+                  url={item.avatar_url}
+                  name={item.display_name ?? item.username}
+                  size={40}
+                />
               </View>
               <View className="flex-1">
                 <Text className="font-semibold text-white">

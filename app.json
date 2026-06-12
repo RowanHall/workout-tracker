@@ -33,6 +33,12 @@
             "imageWidth": 76
           }
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Kova to access your photos to set a profile picture."
+        }
       ]
     ],
     "experiments": {

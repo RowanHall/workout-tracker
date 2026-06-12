@@ -1,4 +1,7 @@
+import { decode } from 'base64-arraybuffer';
 import { useFocusEffect } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import { Camera } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import {
   Alert,
@@ -11,14 +14,60 @@ import {
   View,
 } from 'react-native';
 
+import { Avatar } from '@/components/Avatar';
 import { dateKey, formatWeight } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 import type { BodyWeight } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
 
 export default function SettingsScreen() {
-  const { session, profile } = useAuth();
+  const { session, profile, refreshProfile } = useAuth();
   const userId = session?.user.id;
+  const name = profile?.display_name ?? profile?.username ?? '';
+
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  async function handlePickAvatar() {
+    if (!userId) return;
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Photos access needed', 'Allow photo access to set a profile picture.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.6,
+      base64: true,
+    });
+    const asset = result.assets?.[0];
+    if (result.canceled || !asset?.base64) return;
+
+    setUploadingAvatar(true);
+    try {
+      const path = `${userId}/avatar.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(path, decode(asset.base64), { contentType: 'image/jpeg', upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+      // Stable path + upsert, so cache-bust the URL to force the new image in.
+      const url = `${data.publicUrl}?v=${Date.now()}`;
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: url })
+        .eq('id', userId);
+      if (updateError) throw updateError;
+
+      await refreshProfile();
+    } catch (err: any) {
+      Alert.alert('Could not update photo', err.message);
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
 
   const [latest, setLatest] = useState<Pick<BodyWeight, 'recorded_on' | 'weight'> | null>(null);
   const [input, setInput] = useState('');
@@ -82,6 +131,22 @@ export default function SettingsScreen() {
       className="flex-1 bg-background"
     >
       <ScrollView contentContainerClassName="p-4 pb-8" keyboardShouldPersistTaps="handled">
+        <View className="mb-6 items-center">
+          <Pressable
+            className="active:opacity-80"
+            onPress={handlePickAvatar}
+            disabled={uploadingAvatar}
+          >
+            <Avatar url={profile?.avatar_url} name={name} size={96} />
+            <View className="absolute bottom-0 right-0 rounded-full border-2 border-background bg-primary p-1.5">
+              <Camera size={15} color="#0B0F14" strokeWidth={2.25} />
+            </View>
+          </Pressable>
+          <Text className="mt-2 text-sm text-muted">
+            {uploadingAvatar ? 'Uploading…' : 'Tap to change photo'}
+          </Text>
+        </View>
+
         <SectionLabel>Body Weight</SectionLabel>
         <View className="mb-6 rounded-2xl bg-surface p-4">
           {latest && (

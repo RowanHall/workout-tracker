@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Avatar } from '@/components/Avatar';
 import { BodyWeightCard } from '@/components/BodyWeightCard';
 import { ConsistencyCalendar } from '@/components/ConsistencyCalendar';
 import { VolumeChart, type VolumeByGroup } from '@/components/VolumeChart';
@@ -113,10 +114,8 @@ export default function ProfileScreen() {
         </View>
 
         <View className="mb-4 items-center">
-          <View className="mb-3 h-20 w-20 items-center justify-center rounded-full bg-primary-dim">
-            <Text className="text-3xl font-bold text-white">
-              {name.charAt(0).toUpperCase()}
-            </Text>
+          <View className="mb-3">
+            <Avatar url={profile.avatar_url} name={name} size={80} />
           </View>
           <Text className="text-2xl font-bold text-white">{name}</Text>
           <Text className="text-sm text-muted">@{profile.username}</Text>

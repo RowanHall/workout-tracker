@@ -73,6 +73,7 @@ export interface FeedWorkout extends Workout {
   profiles: {
     username: string;
     display_name: string | null;
+    avatar_url: string | null;
   };
   workout_sets: { id: string; is_pr: boolean }[];
   feed_interactions: FeedInteraction[];
