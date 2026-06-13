@@ -93,7 +93,7 @@ export default function WorkoutScreen() {
   async function handleLogRestDay() {
     setLoggingRest(true);
     try {
-      const { error } = await supabase.rpc('log_rest_day');
+      const { error } = await supabase.rpc('log_rest_day', { p_today: dateKey(new Date()) });
       if (error) throw error;
       await Promise.all([refreshProfile(), loadWeek()]);
     } catch (err: any) {

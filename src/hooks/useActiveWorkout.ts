@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { workoutTitleForNow } from '@/lib/format';
+import { dateKey, workoutTitleForNow } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 import type { Exercise, Workout, WorkoutSet, WorkoutSummary } from '@/lib/types';
 
@@ -123,6 +123,7 @@ export function useActiveWorkout(userId: string | undefined) {
     if (!workout) return null;
     const { data, error } = await supabase.rpc('finish_workout', {
       p_workout_id: workout.id,
+      p_today: dateKey(new Date()),
     });
     if (error) throw error;
     setWorkout(null);
