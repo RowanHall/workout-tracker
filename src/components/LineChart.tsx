@@ -62,17 +62,26 @@ export function LineChart({
 
   const plotW = Math.max(0, width - PAD_LEFT - PAD_RIGHT);
   const plotBottom = height - PAD_BOTTOM;
+  const single = data.length === 1;
 
+  // A single entry sits at the right edge; multiple points spread by date.
   const x = (t: number) =>
-    data.length === 1 ? PAD_LEFT + plotW / 2 : PAD_LEFT + ((t - minX) / xSpan) * plotW;
+    single ? PAD_LEFT + plotW : PAD_LEFT + ((t - minX) / xSpan) * plotW;
   const y = (v: number) => PAD_TOP + ((hi - v) / (hi - lo)) * (plotBottom - PAD_TOP);
 
+  // The real data points (the dots we draw).
   const points = data.map((d) => ({ px: x(d.t), py: y(d.y) }));
-  const polyline = points.map((p) => `${p.px},${p.py}`).join(' ');
+  // With only one entry, assume the value held steady and draw a flat line
+  // across the whole width up to it, rather than a lone dot.
+  const linePoints = single
+    ? [{ px: PAD_LEFT, py: points[0].py }, points[0]]
+    : points;
+
+  const polyline = linePoints.map((p) => `${p.px},${p.py}`).join(' ');
   const areaPath =
-    `M ${points[0].px},${plotBottom} ` +
-    points.map((p) => `L ${p.px},${p.py}`).join(' ') +
-    ` L ${points[points.length - 1].px},${plotBottom} Z`;
+    `M ${linePoints[0].px},${plotBottom} ` +
+    linePoints.map((p) => `L ${p.px},${p.py}`).join(' ') +
+    ` L ${linePoints[linePoints.length - 1].px},${plotBottom} Z`;
 
   return (
     <View onLayout={onLayout}>
@@ -85,24 +94,36 @@ export function LineChart({
             </LinearGradient>
           </Defs>
 
-          <SvgText x={width - 4} y={PAD_TOP + 4} fill="#8B98A9" fontSize={10} textAnchor="end">
-            {formatLabel(maxY)}
-          </SvgText>
-          <SvgText x={width - 4} y={plotBottom} fill="#8B98A9" fontSize={10} textAnchor="end">
-            {formatLabel(minY)}
-          </SvgText>
-
-          {data.length > 1 && <Path d={areaPath} fill={`url(#${gradientId})`} />}
-          {data.length > 1 && (
-            <Polyline
-              points={polyline}
-              fill="none"
-              stroke={color}
-              strokeWidth={2.5}
-              strokeLinejoin="round"
-              strokeLinecap="round"
-            />
+          {single ? (
+            <SvgText
+              x={width - 4}
+              y={points[0].py - 8}
+              fill="#8B98A9"
+              fontSize={10}
+              textAnchor="end"
+            >
+              {formatLabel(maxY)}
+            </SvgText>
+          ) : (
+            <>
+              <SvgText x={width - 4} y={PAD_TOP + 4} fill="#8B98A9" fontSize={10} textAnchor="end">
+                {formatLabel(maxY)}
+              </SvgText>
+              <SvgText x={width - 4} y={plotBottom} fill="#8B98A9" fontSize={10} textAnchor="end">
+                {formatLabel(minY)}
+              </SvgText>
+            </>
           )}
+
+          <Path d={areaPath} fill={`url(#${gradientId})`} />
+          <Polyline
+            points={polyline}
+            fill="none"
+            stroke={color}
+            strokeWidth={2.5}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
 
           {points.map((p, i) => (
             <Circle
