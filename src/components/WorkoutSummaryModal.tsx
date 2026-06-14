@@ -76,6 +76,18 @@ function SummaryContent({ summary }: { summary: WorkoutSummary }) {
         />
       </Animated.View>
 
+      {hasMuscleMap && (
+        <Animated.View
+          entering={FadeInDown.delay(1700).duration(400)}
+          className="mb-4 rounded-2xl bg-surface-2 p-4"
+        >
+          <Text className="mb-1 text-center text-xs font-bold uppercase tracking-[2px] text-muted">
+            Muscles Worked
+          </Text>
+          <MuscleMap activation={activation!} width={230} />
+        </Animated.View>
+      )}
+
       {summary.prs.length > 0 && (
         <View className="mb-4">
           <Animated.Text

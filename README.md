@@ -20,6 +20,12 @@ friends.
   best lifts, top exercises, and a muscle-split breakdown.
 - **History** — browse every finished workout and drill into the exact sets.
 - **Body weight** — log in Settings, see the trend charted on your profile.
+  set logging (sets persist as you go), integrated rest timer, automatic
+  PR detection (estimated 1RM via Epley, plus best set volume).
+- **Muscle map** — an anatomical front/back body figure that shades the
+  specific regions each exercise trains (e.g. upper vs. lower chest), with
+  colour intensity scaled by how hard a muscle is worked. Finishing a workout
+  shows a combined figure of everything you hit that session.
 - **Social feed** — follow friends, see their finished workouts, cheer and
   comment. Visibility is enforced by Row Level Security.
 

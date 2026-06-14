@@ -14,8 +14,13 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { WeeklyVolumeChart, type WeekVolume } from '@/components/WeeklyVolumeChart';
+import { MuscleMap } from '@/components/MuscleMap';
+import { TrophyCard } from '@/components/TrophyCard';
 import { formatVolume } from '@/lib/format';
+import { aggregateActivation, type Activation } from '@/lib/muscles';
 import { supabase } from '@/lib/supabase';
+import type { TrophyDefinition, TrophyProgress } from '@/lib/trophies';
+import type { MuscleGroup } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
 
 const WEEKS_SHOWN = 12;
@@ -174,6 +179,14 @@ export default function StatsScreen() {
     );
 
     setWeeklyVolume(buildWeeklyVolume(workouts));
+
+    setMuscleFocus(
+      aggregateActivation(
+        sets
+          .filter((s) => s.exercises)
+          .map((s) => ({ name: s.exercises!.name, group: s.exercises!.muscle_group, weight: 1 }))
+      )
+    );
 
     setBestLifts(
       ((prsRes.data ?? []) as unknown as { value: number; exercises: { name: string } | null }[])
