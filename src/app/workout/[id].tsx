@@ -2,7 +2,9 @@ import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 
+import { MuscleMap } from '@/components/MuscleMap';
 import { formatDuration, formatVolume, timeAgo } from '@/lib/format';
+import { aggregateActivation } from '@/lib/muscles';
 import { supabase } from '@/lib/supabase';
 import type { MuscleGroup, Workout, WorkoutSet } from '@/lib/types';
 
@@ -104,6 +106,13 @@ export default function WorkoutDetailScreen() {
 
   const name = workout.profiles.display_name ?? workout.profiles.username;
   const exercises = groupByExercise(workout.workout_sets);
+  const activation = aggregateActivation(
+    exercises.map((ex) => ({
+      name: ex.name,
+      group: ex.muscleGroup,
+      weight: ex.sets.length,
+    }))
+  );
 
   return (
     <ScrollView className="flex-1 bg-background" contentContainerClassName="p-4 pb-8">
@@ -135,6 +144,12 @@ export default function WorkoutDetailScreen() {
           <Stat label="EXP" value={`+${workout.exp_earned}`} highlight />
         </View>
       </View>
+
+      {exercises.length > 0 && (
+        <View className="mb-4 rounded-2xl bg-surface p-4">
+          <MuscleMap activation={activation} title="Muscles Worked" />
+        </View>
+      )}
 
       {exercises.map((exercise) => (
         <View key={exercise.name} className="mb-3 rounded-2xl bg-surface p-4">

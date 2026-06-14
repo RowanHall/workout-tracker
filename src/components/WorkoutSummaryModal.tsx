@@ -3,8 +3,10 @@ import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, ZoomIn } from 'react-native-reanimated';
 
 import { AnimatedExpBar } from '@/components/AnimatedExpBar';
+import { MuscleMap } from '@/components/MuscleMap';
 import { formatVolume } from '@/lib/format';
 import { useCountUp } from '@/hooks/useCountUp';
+import type { Activation } from '@/lib/muscles';
 import { TIER_COLORS, tierLabel, trophyIcon } from '@/lib/trophies';
 import type { WorkoutSummary } from '@/lib/types';
 
@@ -12,12 +14,15 @@ interface WorkoutSummaryModalProps {
   summary: WorkoutSummary | null;
   /** The user's total EXP before this workout, for the level-bar animation. */
   previousTotalExp: number;
+  /** Combined muscle activation for the session, for the body figure. */
+  activation?: Activation;
   onClose: () => void;
 }
 
 export function WorkoutSummaryModal({
   summary,
   previousTotalExp,
+  activation,
   onClose,
 }: WorkoutSummaryModalProps) {
   if (!summary) return null;
@@ -25,7 +30,11 @@ export function WorkoutSummaryModal({
     <Modal visible transparent animationType="fade">
       <View className="flex-1 items-center justify-center bg-black/80 px-5">
         <View className="w-full rounded-3xl bg-surface p-6">
-          <SummaryContent summary={summary} previousTotalExp={previousTotalExp} />
+          <SummaryContent
+            summary={summary}
+            previousTotalExp={previousTotalExp}
+            activation={activation}
+          />
           <Animated.View entering={FadeIn.delay(2000)}>
             <Pressable
               className="items-center rounded-xl bg-primary py-3.5 active:opacity-80"
@@ -43,13 +52,16 @@ export function WorkoutSummaryModal({
 function SummaryContent({
   summary,
   previousTotalExp,
+  activation,
 }: {
   summary: WorkoutSummary;
   previousTotalExp: number;
+  activation?: Activation;
 }) {
   const exp = useCountUp(summary.exp_earned, 900, 600);
+  const hasMuscleMap = activation && Object.keys(activation).length > 0;
   // Reveal timeline (ms): header 0 → stats 200 → XP panel 400 (counter +
-  // bar run 600-2000) → PRs 2000 → trophy tiers 2400.
+  // bar run 600-2000) → muscle map 1700 → PRs 2000 → trophy tiers 2400.
   const prBase = 2000;
   const tierBase = prBase + summary.prs.length * 120 + 400;
 
@@ -82,6 +94,18 @@ function SummaryContent({
         </Text>
         <AnimatedExpBar fromExp={previousTotalExp} gained={summary.exp_earned} />
       </Animated.View>
+
+      {hasMuscleMap && (
+        <Animated.View
+          entering={FadeInDown.delay(1700).duration(400)}
+          className="mb-4 rounded-2xl bg-surface-2 p-4"
+        >
+          <Text className="mb-1 text-center text-xs font-bold uppercase tracking-[2px] text-muted">
+            Muscles Worked
+          </Text>
+          <MuscleMap activation={activation!} width={230} />
+        </Animated.View>
+      )}
 
       {summary.prs.length > 0 && (
         <View className="mb-4">

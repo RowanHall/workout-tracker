@@ -4,10 +4,13 @@ import { useCallback, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { MuscleMap } from '@/components/MuscleMap';
 import { TrophyCard } from '@/components/TrophyCard';
 import { formatVolume } from '@/lib/format';
+import { aggregateActivation, type Activation } from '@/lib/muscles';
 import { supabase } from '@/lib/supabase';
 import type { TrophyDefinition, TrophyProgress } from '@/lib/trophies';
+import type { MuscleGroup } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
 
 interface Lifetime {
@@ -29,6 +32,7 @@ export default function StatsScreen() {
   const userId = session?.user.id;
 
   const [lifetime, setLifetime] = useState<Lifetime | null>(null);
+  const [muscleFocus, setMuscleFocus] = useState<Activation>({});
   const [bestLifts, setBestLifts] = useState<BestLift[]>([]);
   const [favoriteExercise, setFavoriteExercise] = useState<string | null>(null);
   const [definitions, setDefinitions] = useState<TrophyDefinition[]>([]);
@@ -44,7 +48,7 @@ export default function StatsScreen() {
         .not('ended_at', 'is', null),
       supabase
         .from('workout_sets')
-        .select('reps, exercises (name), workouts!inner (user_id, ended_at)')
+        .select('reps, exercises (name, muscle_group), workouts!inner (user_id, ended_at)')
         .eq('workouts.user_id', userId)
         .not('workouts.ended_at', 'is', null),
       supabase
@@ -69,7 +73,7 @@ export default function StatsScreen() {
     }[];
     const sets = (setsRes.data ?? []) as unknown as {
       reps: number;
-      exercises: { name: string } | null;
+      exercises: { name: string; muscle_group: MuscleGroup } | null;
     }[];
 
     const minutes = workouts.reduce(
@@ -93,6 +97,14 @@ export default function StatsScreen() {
     }
     const favorite = [...setCounts.entries()].sort((a, b) => b[1] - a[1])[0];
     setFavoriteExercise(favorite ? favorite[0] : null);
+
+    setMuscleFocus(
+      aggregateActivation(
+        sets
+          .filter((s) => s.exercises)
+          .map((s) => ({ name: s.exercises!.name, group: s.exercises!.muscle_group, weight: 1 }))
+      )
+    );
 
     setBestLifts(
       ((prsRes.data ?? []) as unknown as { value: number; exercises: { name: string } | null }[])
@@ -135,6 +147,12 @@ export default function StatsScreen() {
             <StatTile label="Reps Performed" value={lifetime.reps.toLocaleString()} />
             <StatTile label="Time Training" value={formatMinutes(lifetime.minutes)} />
             <StatTile label="Best Session" value={formatVolume(lifetime.bestSessionVolume)} />
+          </View>
+        )}
+
+        {Object.keys(muscleFocus).length > 0 && (
+          <View className="mb-4 rounded-2xl bg-surface p-4">
+            <MuscleMap activation={muscleFocus} title="Muscle Focus" />
           </View>
         )}
 

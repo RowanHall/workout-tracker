@@ -12,6 +12,10 @@ streaks alive, and cheer on your friends.
 - **Smart logging** — seeded exercise library by muscle group, tap-friendly
   set logging (sets persist as you go), integrated rest timer, automatic
   PR detection (estimated 1RM via Epley, plus best set volume).
+- **Muscle map** — an anatomical front/back body figure that shades the
+  specific regions each exercise trains (e.g. upper vs. lower chest), with
+  colour intensity scaled by how hard a muscle is worked. Finishing a workout
+  shows a combined figure of everything you hit that session.
 - **Social feed** — follow friends, see their finished workouts, cheer and
   comment. Visibility is enforced by Row Level Security.
 - **Profile & analytics** — level/EXP bar, streaks, trophy case,
