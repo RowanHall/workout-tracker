@@ -1,4 +1,4 @@
-import { Medal } from 'lucide-react-native';
+import { Medal, Share2 } from 'lucide-react-native';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
@@ -8,16 +8,27 @@ import type { WorkoutSummary } from '@/lib/types';
 interface WorkoutSummaryModalProps {
   summary: WorkoutSummary | null;
   onClose: () => void;
+  /** When provided, shows a "Share workout" button beside Continue. */
+  onShare?: () => void;
 }
 
-export function WorkoutSummaryModal({ summary, onClose }: WorkoutSummaryModalProps) {
+export function WorkoutSummaryModal({ summary, onClose, onShare }: WorkoutSummaryModalProps) {
   if (!summary) return null;
   return (
     <Modal visible transparent animationType="fade">
       <View className="flex-1 items-center justify-center bg-black/80 px-5">
         <View className="w-full rounded-3xl bg-surface p-6">
           <SummaryContent summary={summary} />
-          <Animated.View entering={FadeIn.delay(1600)}>
+          <Animated.View entering={FadeIn.delay(1600)} className="gap-2.5">
+            {onShare && (
+              <Pressable
+                className="flex-row items-center justify-center gap-2 rounded-xl border border-border py-3.5 active:opacity-70"
+                onPress={onShare}
+              >
+                <Share2 size={18} color="#22C55E" strokeWidth={2.25} />
+                <Text className="font-bold text-primary">Share workout</Text>
+              </Pressable>
+            )}
             <Pressable
               className="items-center rounded-xl bg-primary py-3.5 active:opacity-80"
               onPress={onClose}

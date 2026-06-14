@@ -37,7 +37,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Kova to access your photos to set a profile picture."
+          "photosPermission": "Allow Kova to access your photos for your profile picture and shareable workout cards.",
+          "cameraPermission": "Allow Kova to use your camera to add a photo to your shareable workout card."
         }
       ],
       [

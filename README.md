@@ -22,6 +22,10 @@ friends.
 - **Body weight** — log in Settings, see the trend charted on your profile.
 - **Social feed** — follow friends, see their finished workouts, cheer and
   comment. Visibility is enforced by Row Level Security.
+- **Share your workout** — turn any session into an image: a transparent stat
+  overlay to drop onto an Instagram Story (Strava-style), or your own photo with
+  the stats baked in to send through the native share sheet (Messages, WhatsApp…).
+  Available right after you finish a workout and from any workout's detail page.
 
 ## Tech stack
 
@@ -36,6 +40,10 @@ npm install
 cp .env.example .env   # public Supabase keys
 npx expo start         # scan the QR code with Expo Go
 ```
+
+> The workout-share screen captures a view to a PNG with `react-native-view-shot`,
+> which isn't bundled in Expo Go. Use a development build (`npx expo run:ios` /
+> `run:android`, or an EAS dev build) to exercise that flow.
 
 ## Project layout
 
