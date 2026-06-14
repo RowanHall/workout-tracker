@@ -1,14 +1,16 @@
 import { decode } from 'base64-arraybuffer';
 import { useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera } from 'lucide-react-native';
-import { useCallback, useState } from 'react';
+import { Bell, Camera } from 'lucide-react-native';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
+  Switch,
   Text,
   TextInput,
   View,
@@ -16,6 +18,14 @@ import {
 
 import { Avatar } from '@/components/Avatar';
 import { dateKey, formatWeight } from '@/lib/format';
+import { ensurePermission, hasPermission, schedule } from '@/lib/notifications';
+import {
+  DEFAULT_SETTINGS,
+  loadSettings,
+  saveSettings,
+  type NotificationSettings,
+  type ReminderIntensity,
+} from '@/lib/notificationSettings';
 import { supabase } from '@/lib/supabase';
 import type { BodyWeight } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
@@ -26,6 +36,52 @@ export default function SettingsScreen() {
   const name = profile?.display_name ?? profile?.username ?? '';
 
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const [notifSettings, setNotifSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS);
+  const [notifPermGranted, setNotifPermGranted] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      setNotifSettings(await loadSettings());
+      setNotifPermGranted(await hasPermission());
+    })();
+  }, []);
+
+  const persistNotifSettings = useCallback(
+    async (next: NotificationSettings) => {
+      setNotifSettings(next);
+      await saveSettings(next);
+      await schedule(profile, next);
+    },
+    [profile]
+  );
+
+  async function handleToggleNotifs(value: boolean) {
+    if (value) {
+      const granted = await ensurePermission();
+      setNotifPermGranted(granted);
+      if (!granted) {
+        Alert.alert(
+          'Notifications disabled',
+          'Enable notifications for Kova in your device Settings to get streak reminders.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() },
+          ]
+        );
+        return;
+      }
+    }
+    await persistNotifSettings({ ...notifSettings, enabled: value });
+  }
+
+  async function handleIntensity(intensity: ReminderIntensity) {
+    await persistNotifSettings({ ...notifSettings, intensity });
+  }
+
+  async function handleReminderHour(hour: number) {
+    await persistNotifSettings({ ...notifSettings, reminderHour: hour });
+  }
 
   async function handlePickAvatar() {
     if (!userId) return;
@@ -182,6 +238,95 @@ export default function SettingsScreen() {
           </Text>
         </View>
 
+        <SectionLabel>Reminders</SectionLabel>
+        <View className="mb-6 overflow-hidden rounded-2xl bg-surface">
+          <View className="flex-row items-center justify-between px-4 py-3.5">
+            <View className="flex-1 flex-row items-center gap-3">
+              <Bell size={18} color="#8B98A9" />
+              <View className="flex-1">
+                <Text className="font-semibold text-white">Streak reminders</Text>
+                <Text className="text-xs text-muted">
+                  {notifPermGranted
+                    ? "Local nudges so you don't break your streak."
+                    : 'Enable to get streak nudges.'}
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={notifSettings.enabled && notifPermGranted}
+              onValueChange={handleToggleNotifs}
+              trackColor={{ false: '#2A3340', true: '#22C55E' }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+
+          {notifSettings.enabled && notifPermGranted && (
+            <>
+              <View className="h-px bg-border" />
+              <View className="px-4 py-3.5">
+                <Text className="mb-2 text-sm font-semibold text-white">How pushy?</Text>
+                <View className="flex-row gap-2">
+                  {(['gentle', 'balanced', 'pushy'] as const).map((opt) => (
+                    <Pressable
+                      key={opt}
+                      onPress={() => handleIntensity(opt)}
+                      className={`flex-1 rounded-xl px-3 py-2.5 ${
+                        notifSettings.intensity === opt
+                          ? 'bg-primary'
+                          : 'border border-border bg-surface-2'
+                      }`}
+                    >
+                      <Text
+                        className={`text-center text-sm font-semibold capitalize ${
+                          notifSettings.intensity === opt ? 'text-background' : 'text-white'
+                        }`}
+                      >
+                        {opt}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Text className="mt-2 text-xs text-muted">
+                  {notifSettings.intensity === 'gentle' &&
+                    'Only when your streak is at risk, plus milestones and comebacks.'}
+                  {notifSettings.intensity === 'balanced' &&
+                    'Adds a workout nudge on Mon / Wed / Fri.'}
+                  {notifSettings.intensity === 'pushy' &&
+                    "Daily workout nudge on days you haven't trained."}
+                </Text>
+              </View>
+
+              <View className="h-px bg-border" />
+              <View className="px-4 py-3.5">
+                <Text className="mb-2 text-sm font-semibold text-white">Reminder time</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View className="flex-row gap-2">
+                    {[6, 9, 12, 15, 17, 19, 21].map((hr) => (
+                      <Pressable
+                        key={hr}
+                        onPress={() => handleReminderHour(hr)}
+                        className={`rounded-xl px-3 py-2 ${
+                          notifSettings.reminderHour === hr
+                            ? 'bg-primary'
+                            : 'border border-border bg-surface-2'
+                        }`}
+                      >
+                        <Text
+                          className={`text-sm font-semibold ${
+                            notifSettings.reminderHour === hr ? 'text-background' : 'text-white'
+                          }`}
+                        >
+                          {formatHour(hr)}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            </>
+          )}
+        </View>
+
         <SectionLabel>Account</SectionLabel>
         <View className="mb-6 overflow-hidden rounded-2xl bg-surface">
           <Row label="Username" value={`@${profile?.username ?? ''}`} />
@@ -206,6 +351,12 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
       {children}
     </Text>
   );
+}
+
+function formatHour(hour: number): string {
+  const period = hour < 12 ? 'AM' : 'PM';
+  const display = hour % 12 === 0 ? 12 : hour % 12;
+  return `${display} ${period}`;
 }
 
 function Row({ label, value }: { label: string; value: string }) {

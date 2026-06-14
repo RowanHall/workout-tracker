@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
 
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
+import { NotificationsManager } from '@/providers/NotificationsManager';
 
 function RootNavigator() {
   const { session, loading } = useAuth();
@@ -18,13 +19,15 @@ function RootNavigator() {
   }
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: '#0B0F14' },
-      }}
-    >
-      <Stack.Protected guard={!!session}>
+    <>
+      {session && <NotificationsManager />}
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: '#0B0F14' },
+        }}
+      >
+        <Stack.Protected guard={!!session}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
           name="people"
@@ -91,10 +94,11 @@ function RootNavigator() {
           }}
         />
       </Stack.Protected>
-      <Stack.Protected guard={!session}>
-        <Stack.Screen name="(auth)" />
-      </Stack.Protected>
-    </Stack>
+        <Stack.Protected guard={!session}>
+          <Stack.Screen name="(auth)" />
+        </Stack.Protected>
+      </Stack>
+    </>
   );
 }
 

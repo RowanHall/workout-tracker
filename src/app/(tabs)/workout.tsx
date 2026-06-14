@@ -21,6 +21,7 @@ import { WorkoutSummaryModal } from '@/components/WorkoutSummaryModal';
 import { useActiveWorkout, type WorkoutEntry } from '@/hooks/useActiveWorkout';
 import { displayStreak } from '@/lib/streak';
 import { dateKey } from '@/lib/format';
+import { fireMilestoneIfDue, resetMilestoneTracker } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 import type { WorkoutSummary } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
@@ -115,6 +116,8 @@ export default function WorkoutScreen() {
         setSummary(result);
         refreshProfile();
         loadWeek();
+        if (result.streak === 1) await resetMilestoneTracker();
+        fireMilestoneIfDue(result.streak);
       }
     } catch (err: any) {
       Alert.alert('Could not finish workout', err.message);

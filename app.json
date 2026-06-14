@@ -39,6 +39,12 @@
         {
           "photosPermission": "Allow Kova to access your photos to set a profile picture."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#22C55E"
+        }
       ]
     ],
     "experiments": {
