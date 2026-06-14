@@ -1,8 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Medal } from 'lucide-react-native';
+import { Medal, Share2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
+import type { ShareStats } from '@/components/ShareableWorkoutCard';
+import { WorkoutShareSheet } from '@/components/WorkoutShareSheet';
 import { Avatar } from '@/components/Avatar';
 import { formatDuration, formatVolume, timeAgo } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
@@ -67,6 +69,7 @@ export default function WorkoutDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [workout, setWorkout] = useState<WorkoutDetail | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -106,8 +109,22 @@ export default function WorkoutDetailScreen() {
 
   const name = workout.profiles.display_name ?? workout.profiles.username;
   const exercises = groupByExercise(workout.workout_sets);
+  const prCount = workout.workout_sets.filter((s) => s.is_pr).length;
+  const shareStats: ShareStats = {
+    title: workout.title,
+    dateIso: workout.ended_at ?? workout.started_at,
+    volume: workout.total_volume,
+    sets: workout.total_sets,
+    durationLabel: workout.ended_at
+      ? formatDuration(workout.started_at, workout.ended_at)
+      : null,
+    prCount,
+    streak: null,
+    athleteName: name,
+  };
 
   return (
+    <>
     <ScrollView className="flex-1 bg-background" contentContainerClassName="p-4 pb-8">
       <View className="mb-4 rounded-2xl bg-surface p-4">
         <Pressable
@@ -126,12 +143,22 @@ export default function WorkoutDetailScreen() {
         </Pressable>
 
         <Text className="mb-3 text-xl font-bold text-white">{workout.title}</Text>
-        <View className="flex-row gap-4">
-          <Stat label="Volume" value={formatVolume(workout.total_volume)} />
-          <Stat label="Sets" value={String(workout.total_sets)} />
-          {workout.ended_at && (
-            <Stat label="Time" value={formatDuration(workout.started_at, workout.ended_at)} />
-          )}
+        <View className="flex-row items-end justify-between">
+          <View className="flex-row gap-4">
+            <Stat label="Volume" value={formatVolume(workout.total_volume)} />
+            <Stat label="Sets" value={String(workout.total_sets)} />
+            {workout.ended_at && (
+              <Stat label="Time" value={formatDuration(workout.started_at, workout.ended_at)} />
+            )}
+          </View>
+          <Pressable
+            className="flex-row items-center gap-1.5 rounded-full bg-surface-2 px-3 py-2 active:opacity-70"
+            onPress={() => setShareOpen(true)}
+            hitSlop={6}
+          >
+            <Share2 size={16} color="#22C55E" strokeWidth={2.25} />
+            <Text className="text-xs font-semibold text-primary">Share</Text>
+          </Pressable>
         </View>
       </View>
 
@@ -170,6 +197,12 @@ export default function WorkoutDetailScreen() {
         <Text className="mt-8 text-center text-muted">No sets were logged.</Text>
       )}
     </ScrollView>
+    <WorkoutShareSheet
+      visible={shareOpen}
+      stats={shareStats}
+      onClose={() => setShareOpen(false)}
+    />
+    </>
   );
 }
 

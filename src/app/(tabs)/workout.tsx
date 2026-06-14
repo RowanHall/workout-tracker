@@ -16,11 +16,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ExercisePicker } from '@/components/ExercisePicker';
 import { RestTimer } from '@/components/RestTimer';
+import type { ShareStats } from '@/components/ShareableWorkoutCard';
 import { WeekTracker } from '@/components/WeekTracker';
+import { WorkoutShareSheet } from '@/components/WorkoutShareSheet';
 import { WorkoutSummaryModal } from '@/components/WorkoutSummaryModal';
 import { useActiveWorkout, type WorkoutEntry } from '@/hooks/useActiveWorkout';
 import { displayStreak } from '@/lib/streak';
-import { dateKey } from '@/lib/format';
+import { dateKey, formatDuration } from '@/lib/format';
 import { fireMilestoneIfDue, resetMilestoneTracker } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 import type { WorkoutSummary } from '@/lib/types';
@@ -43,6 +45,8 @@ export default function WorkoutScreen() {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [restTrigger, setRestTrigger] = useState(0);
   const [summary, setSummary] = useState<WorkoutSummary | null>(null);
+  const [shareStats, setShareStats] = useState<ShareStats | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [weekWorkoutIds, setWeekWorkoutIds] = useState<Record<string, string>>({});
   const [weekRestDates, setWeekRestDates] = useState<string[]>([]);
@@ -110,9 +114,25 @@ export default function WorkoutScreen() {
       return;
     }
     setFinishing(true);
+    // Captured before finish() clears the active workout, so the share card can
+    // show its title and duration.
+    const finishedWorkout = workout;
     try {
       const result = await finish();
       if (result && !result.discarded) {
+        const endedIso = new Date().toISOString();
+        setShareStats({
+          title: finishedWorkout?.title ?? 'Workout',
+          dateIso: endedIso,
+          volume: result.total_volume,
+          sets: result.total_sets,
+          durationLabel: finishedWorkout
+            ? formatDuration(finishedWorkout.started_at, endedIso)
+            : null,
+          prCount: result.prs.length,
+          streak: result.streak,
+          athleteName: profile?.display_name ?? profile?.username ?? null,
+        });
         setSummary(result);
         refreshProfile();
         loadWeek();
@@ -197,7 +217,16 @@ export default function WorkoutScreen() {
             <Text className="mt-3 text-xs text-muted">{restHelper}</Text>
           )}
         </View>
-        <WorkoutSummaryModal summary={summary} onClose={() => setSummary(null)} />
+        <WorkoutSummaryModal
+          summary={summary}
+          onClose={() => setSummary(null)}
+          onShare={shareStats ? () => setShareOpen(true) : undefined}
+        />
+        <WorkoutShareSheet
+          visible={shareOpen}
+          stats={shareStats}
+          onClose={() => setShareOpen(false)}
+        />
       </SafeAreaView>
     );
   }
@@ -284,7 +313,16 @@ export default function WorkoutScreen() {
         onClose={() => setPickerVisible(false)}
         onSelect={addExercise}
       />
-      <WorkoutSummaryModal summary={summary} onClose={() => setSummary(null)} />
+      <WorkoutSummaryModal
+        summary={summary}
+        onClose={() => setSummary(null)}
+        onShare={shareStats ? () => setShareOpen(true) : undefined}
+      />
+      <WorkoutShareSheet
+        visible={shareOpen}
+        stats={shareStats}
+        onClose={() => setShareOpen(false)}
+      />
     </SafeAreaView>
   );
 }
