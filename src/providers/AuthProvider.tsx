@@ -41,28 +41,33 @@ export function AuthProvider({ children }: PropsWithChildren) {
       return;
     }
     // Accounts created before the profile trigger existed have no profiles
-    // row; create one here so legacy sign-ins still work.
+    // row; create one here so legacy sign-ins still work. OAuth providers
+    // supply name/avatar under varying keys.
+    const meta = (user.user_metadata ?? {}) as Record<string, string | undefined>;
     const fallback = `user_${user.id.replace(/-/g, '').slice(0, 8)}`;
-    const fromEmail = (user.email ?? '')
-      .split('@')[0]
+    const fromHandle = (
+      meta.username ??
+      meta.user_name ??
+      meta.preferred_username ??
+      (user.email ?? '').split('@')[0]
+    )
       .replace(/[^a-zA-Z0-9_]/g, '')
       .slice(0, 24);
-    const username =
-      (user.user_metadata?.username as string | undefined) ??
-      (fromEmail.length >= 3 ? fromEmail : fallback);
+    const username = fromHandle.length >= 3 ? fromHandle : fallback;
     const displayName =
-      (user.user_metadata?.display_name as string | undefined) ?? username;
+      meta.display_name ?? meta.full_name ?? meta.name ?? meta.user_name ?? username;
+    const avatarUrl = meta.avatar_url ?? meta.picture ?? null;
 
     let { data: created } = await supabase
       .from('profiles')
-      .insert({ id: user.id, username, display_name: displayName })
+      .insert({ id: user.id, username, display_name: displayName, avatar_url: avatarUrl })
       .select()
       .single();
     if (!created && username !== fallback) {
       // Username taken — retry with a generated handle.
       ({ data: created } = await supabase
         .from('profiles')
-        .insert({ id: user.id, username: fallback, display_name: displayName })
+        .insert({ id: user.id, username: fallback, display_name: displayName, avatar_url: avatarUrl })
         .select()
         .single());
     }

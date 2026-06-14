@@ -5,11 +5,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
 
+import { KovaLogo } from '@/components/KovaLogo';
+import { OAuthButtons } from '@/components/OAuthButtons';
 import { supabase } from '@/lib/supabase';
 
 export default function SignUp() {
@@ -56,12 +59,18 @@ export default function SignUp() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       className="flex-1 bg-background"
     >
-      <View className="flex-1 justify-center px-8">
-        <Text className="mb-1 text-center text-3xl font-bold text-white">
-          Join Arrow
+      <ScrollView
+        contentContainerClassName="flex-grow justify-center px-8 py-12"
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text className="mb-2 text-center text-sm font-semibold uppercase tracking-[3px] text-muted">
+          Join
         </Text>
+        <View className="mb-2 items-center">
+          <KovaLogo size={44} />
+        </View>
         <Text className="mb-10 text-center text-base text-muted">
-          Earn EXP every time you train
+          Track every workout, set by set
         </Text>
 
         <TextInput
@@ -107,13 +116,15 @@ export default function SignUp() {
           </Text>
         </Pressable>
 
+        <OAuthButtons />
+
         <View className="mt-6 flex-row justify-center">
           <Text className="text-muted">Already lifting with us? </Text>
           <Link href="/sign-in" className="font-semibold text-primary">
             Sign in
           </Link>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }

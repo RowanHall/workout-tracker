@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
-import { Check, ChevronDown, Dumbbell, Flame, Moon, Plus, Trash2 } from 'lucide-react-native';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Check, Dumbbell, Flame, Moon, Plus, Trash2 } from 'lucide-react-native';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,17 +18,9 @@ import { ExercisePicker } from '@/components/ExercisePicker';
 import { RestTimer } from '@/components/RestTimer';
 import { WeekTracker } from '@/components/WeekTracker';
 import { WorkoutSummaryModal } from '@/components/WorkoutSummaryModal';
-import { MuscleBody } from '@/components/MuscleBody';
 import { useActiveWorkout, type WorkoutEntry } from '@/hooks/useActiveWorkout';
-import { displayStreak } from '@/lib/exp';
+import { displayStreak } from '@/lib/streak';
 import { dateKey } from '@/lib/format';
-import {
-  activationFor,
-  aggregateActivation,
-  MUSCLE_LABELS,
-  topMuscles,
-  type Activation,
-} from '@/lib/muscles';
 import { supabase } from '@/lib/supabase';
 import type { WorkoutSummary } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
@@ -50,8 +42,6 @@ export default function WorkoutScreen() {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [restTrigger, setRestTrigger] = useState(0);
   const [summary, setSummary] = useState<WorkoutSummary | null>(null);
-  const [sessionActivation, setSessionActivation] = useState<Activation>({});
-  const [expBeforeWorkout, setExpBeforeWorkout] = useState(0);
   const [finishing, setFinishing] = useState(false);
   const [weekWorkoutIds, setWeekWorkoutIds] = useState<Record<string, string>>({});
   const [weekRestDates, setWeekRestDates] = useState<string[]>([]);
@@ -103,7 +93,7 @@ export default function WorkoutScreen() {
   async function handleLogRestDay() {
     setLoggingRest(true);
     try {
-      const { error } = await supabase.rpc('log_rest_day');
+      const { error } = await supabase.rpc('log_rest_day', { p_today: dateKey(new Date()) });
       if (error) throw error;
       await Promise.all([refreshProfile(), loadWeek()]);
     } catch (err: any) {
@@ -119,23 +109,9 @@ export default function WorkoutScreen() {
       return;
     }
     setFinishing(true);
-    const expBefore = profile?.total_exp ?? 0;
-    // Combine every logged exercise into one activation map, weighting each by
-    // its set count so the body figure reflects what the session emphasised.
-    const activation = aggregateActivation(
-      entries
-        .filter((e) => e.sets.length > 0)
-        .map((e) => ({
-          name: e.exercise.name,
-          group: e.exercise.muscle_group,
-          weight: e.sets.length,
-        }))
-    );
     try {
       const result = await finish();
       if (result && !result.discarded) {
-        setExpBeforeWorkout(expBefore);
-        setSessionActivation(activation);
         setSummary(result);
         refreshProfile();
         loadWeek();
@@ -218,12 +194,7 @@ export default function WorkoutScreen() {
             <Text className="mt-3 text-xs text-muted">{restHelper}</Text>
           )}
         </View>
-        <WorkoutSummaryModal
-          summary={summary}
-          previousTotalExp={expBeforeWorkout}
-          activation={sessionActivation}
-          onClose={() => setSummary(null)}
-        />
+        <WorkoutSummaryModal summary={summary} onClose={() => setSummary(null)} />
       </SafeAreaView>
     );
   }
@@ -310,11 +281,7 @@ export default function WorkoutScreen() {
         onClose={() => setPickerVisible(false)}
         onSelect={addExercise}
       />
-      <WorkoutSummaryModal
-        summary={summary}
-        previousTotalExp={expBeforeWorkout}
-        onClose={() => setSummary(null)}
-      />
+      <WorkoutSummaryModal summary={summary} onClose={() => setSummary(null)} />
     </SafeAreaView>
   );
 }
@@ -322,8 +289,10 @@ export default function WorkoutScreen() {
 function SummaryStat({ value, label }: { value: string; label: string }) {
   return (
     <View className="flex-1 items-center">
-      <Text className="text-lg font-bold text-white">{value}</Text>
-      <Text className="text-xs text-muted">{label}</Text>
+      <Text className="text-xl font-extrabold text-white">{value}</Text>
+      <Text className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
+        {label}
+      </Text>
     </View>
   );
 }
@@ -359,13 +328,6 @@ function ExerciseBlock({
   const [weight, setWeight] = useState('');
   const [reps, setReps] = useState('');
   const [logging, setLogging] = useState(false);
-  const [showMuscles, setShowMuscles] = useState(false);
-
-  const activation = useMemo(
-    () => activationFor(entry.exercise.name, entry.exercise.muscle_group),
-    [entry.exercise.name, entry.exercise.muscle_group]
-  );
-  const worked = useMemo(() => topMuscles(activation, 3), [activation]);
 
   async function handleLog() {
     const w = parseFloat(weight);
@@ -393,9 +355,8 @@ function ExerciseBlock({
         </View>
         <View className="flex-1">
           <Text className="text-base font-bold text-white">{entry.exercise.name}</Text>
-          <Text className="text-xs text-muted" numberOfLines={1}>
-            {worked.map((m) => MUSCLE_LABELS[m]).join(' · ') ||
-              entry.exercise.muscle_group.replace('_', ' ')}
+          <Text className="text-xs capitalize text-muted">
+            {entry.exercise.muscle_group.replace('_', ' ')}
           </Text>
         </View>
         {entry.sets.length > 0 && (
@@ -406,27 +367,6 @@ function ExerciseBlock({
           </View>
         )}
       </View>
-
-      <Pressable
-        className="mb-3 flex-row items-center justify-center gap-1.5 rounded-xl bg-surface-2 py-2 active:opacity-70"
-        onPress={() => setShowMuscles((s) => !s)}
-      >
-        <Text className="text-xs font-semibold text-primary">
-          {showMuscles ? 'Hide muscle map' : 'Muscle map'}
-        </Text>
-        <ChevronDown
-          size={14}
-          color="#22C55E"
-          strokeWidth={2.5}
-          style={{ transform: [{ rotate: showMuscles ? '180deg' : '0deg' }] }}
-        />
-      </Pressable>
-
-      {showMuscles && (
-        <View className="mb-3 items-center rounded-xl bg-surface-2 py-3">
-          <MuscleBody activation={activation} width={170} />
-        </View>
-      )}
 
       {entry.sets.map((set) => (
         <View

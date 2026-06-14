@@ -45,6 +45,51 @@ function RootNavigator() {
             headerTintColor: '#FFFFFF',
           }}
         />
+        <Stack.Screen
+          name="settings"
+          options={{
+            headerShown: true,
+            title: 'Settings',
+            headerStyle: { backgroundColor: '#151B23' },
+            headerTintColor: '#FFFFFF',
+          }}
+        />
+        <Stack.Screen
+          name="history"
+          options={{
+            headerShown: true,
+            title: 'Workout History',
+            headerStyle: { backgroundColor: '#151B23' },
+            headerTintColor: '#FFFFFF',
+          }}
+        />
+        <Stack.Screen
+          name="exercises"
+          options={{
+            headerShown: true,
+            title: 'Exercises',
+            headerStyle: { backgroundColor: '#151B23' },
+            headerTintColor: '#FFFFFF',
+          }}
+        />
+        <Stack.Screen
+          name="exercise/[id]"
+          options={{
+            headerShown: true,
+            title: 'Exercise',
+            headerStyle: { backgroundColor: '#151B23' },
+            headerTintColor: '#FFFFFF',
+          }}
+        />
+        <Stack.Screen
+          name="user/[id]"
+          options={{
+            headerShown: true,
+            title: 'Profile',
+            headerStyle: { backgroundColor: '#151B23' },
+            headerTintColor: '#FFFFFF',
+          }}
+        />
       </Stack.Protected>
       <Stack.Protected guard={!session}>
         <Stack.Screen name="(auth)" />

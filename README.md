@@ -1,29 +1,31 @@
-# Arrow — Gamified Workout Tracker
+# Kova — Workout Tracker
 
-A social, gamified strength-training tracker built with Expo (React Native),
-NativeWind, and Supabase. Log workouts, earn EXP, level up, break PRs, keep
-streaks alive, and cheer on your friends.
+A social strength-training tracker built with Expo (React Native), NativeWind,
+and Supabase. Log workouts set by set, track your stats and body weight over
+time, browse your workout history, keep streaks alive, and cheer on your
+friends.
+
+> Levels, EXP, and trophies are paused in the app for now. The underlying
+> tables and the `finish_workout` engine still compute them, so the system can
+> be switched back on later without data loss.
 
 ## Features
 
-- **Gamification** — EXP for every workout (base + per-set + PR + streak
-  bonuses), a scaling level curve, and unlockable trophies. All awarded
-  atomically by the `finish_workout` Postgres function.
 - **Smart logging** — seeded exercise library by muscle group, tap-friendly
-  set logging (sets persist as you go), integrated rest timer, automatic
-  PR detection (estimated 1RM via Epley, plus best set volume).
-- **Muscle map** — an anatomical front/back body figure that shades the
-  specific regions each exercise trains (e.g. upper vs. lower chest), with
-  colour intensity scaled by how hard a muscle is worked. Finishing a workout
-  shows a combined figure of everything you hit that session.
+  set logging (sets persist as you go), integrated rest timer, automatic PR
+  detection (estimated 1RM via Epley, plus best set volume), and rest-day
+  logging that protects a streak.
+- **Deep stats** — lifetime totals, per-session averages, a weekly-volume
+  trend chart, records (heaviest set, longest session, biggest session…),
+  best lifts, top exercises, and a muscle-split breakdown.
+- **History** — browse every finished workout and drill into the exact sets.
+- **Body weight** — log in Settings, see the trend charted on your profile.
 - **Social feed** — follow friends, see their finished workouts, cheer and
   comment. Visibility is enforced by Row Level Security.
-- **Profile & analytics** — level/EXP bar, streaks, trophy case,
-  GitHub-style consistency calendar, and volume-per-muscle-group chart.
 
 ## Tech stack
 
-- Expo SDK 56 + Expo Router (file-based navigation, `src/app/`)
+- Expo SDK 54 + Expo Router (file-based navigation, `src/app/`)
 - NativeWind 4 (Tailwind CSS for React Native)
 - Supabase (Postgres, Auth, RLS, SQL functions)
 
@@ -41,28 +43,17 @@ npx expo start         # scan the QR code with Expo Go
 src/
   app/            # Expo Router routes
     (auth)/       # sign-in / sign-up
-    (tabs)/       # feed, workout logger, profile
+    (tabs)/       # profile, feed, workout logger, stats
+    history.tsx   # workout history (stacked screen)
+    settings.tsx  # body-weight logging, account, sign out
     people.tsx    # find & follow friends (modal)
+    workout/[id]  # single workout detail
   components/     # small reusable UI pieces
   hooks/          # useActiveWorkout (logging state machine)
-  lib/            # supabase client, EXP math, formatting, types
+  lib/            # supabase client, streak/formatting helpers, types
   providers/      # AuthProvider (session + profile context)
 supabase/
-  migrations/     # schema, RLS, gamification engine, seed data
+  migrations/     # schema, RLS, gamification engine, seed data, body weights
 ```
-
-## Database
-
-Applied migrations (also in `supabase/migrations/`):
-
-1. `001_core_schema.sql` — profiles, exercises, workouts, workout_sets,
-   personal_records, social_follows, feed_interactions, trophies.
-2. `002_rls_policies.sql` — owner-write everywhere; followers can read
-   workouts/PRs/interactions.
-3. `003_gamification.sql` — signup trigger, level curve
-   (`floor(100 * level^1.5)` EXP per level), and the `finish_workout` RPC
-   that computes volume, detects PRs, awards EXP, updates streaks, and
-   unlocks trophies in one transaction.
-4. `004_seed_data.sql` — ~60 standard exercises and 11 trophies.
 
 Weights are stored in lbs.

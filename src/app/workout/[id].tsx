@@ -1,10 +1,10 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
+import { Medal } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
-import { MuscleMap } from '@/components/MuscleMap';
+import { Avatar } from '@/components/Avatar';
 import { formatDuration, formatVolume, timeAgo } from '@/lib/format';
-import { aggregateActivation } from '@/lib/muscles';
 import { supabase } from '@/lib/supabase';
 import type { MuscleGroup, Workout, WorkoutSet } from '@/lib/types';
 
@@ -17,7 +17,7 @@ interface WorkoutDetail extends Workout {
   profiles: {
     username: string;
     display_name: string | null;
-    current_level: number;
+    avatar_url: string | null;
   };
   workout_sets: DetailSet[];
 }
@@ -74,7 +74,7 @@ export default function WorkoutDetailScreen() {
       .from('workouts')
       .select(
         `*,
-         profiles (username, display_name, current_level),
+         profiles (username, display_name, avatar_url),
          workout_sets (*, exercises (name, muscle_group))`
       )
       .eq('id', id)
@@ -106,20 +106,16 @@ export default function WorkoutDetailScreen() {
 
   const name = workout.profiles.display_name ?? workout.profiles.username;
   const exercises = groupByExercise(workout.workout_sets);
-  const activation = aggregateActivation(
-    exercises.map((ex) => ({
-      name: ex.name,
-      group: ex.muscleGroup,
-      weight: ex.sets.length,
-    }))
-  );
 
   return (
     <ScrollView className="flex-1 bg-background" contentContainerClassName="p-4 pb-8">
       <View className="mb-4 rounded-2xl bg-surface p-4">
-        <View className="mb-3 flex-row items-center">
-          <View className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-primary-dim">
-            <Text className="font-bold text-white">{name.charAt(0).toUpperCase()}</Text>
+        <Pressable
+          className="mb-3 flex-row items-center active:opacity-70"
+          onPress={() => router.push(`/user/${workout.user_id}`)}
+        >
+          <View className="mr-3">
+            <Avatar url={workout.profiles.avatar_url} name={name} size={40} />
           </View>
           <View className="flex-1">
             <Text className="font-semibold text-white">{name}</Text>
@@ -127,12 +123,7 @@ export default function WorkoutDetailScreen() {
               @{workout.profiles.username} · {timeAgo(workout.ended_at ?? workout.started_at)}
             </Text>
           </View>
-          <View className="rounded-full bg-surface-2 px-2.5 py-1">
-            <Text className="text-xs font-bold text-primary">
-              LVL {workout.profiles.current_level}
-            </Text>
-          </View>
-        </View>
+        </Pressable>
 
         <Text className="mb-3 text-xl font-bold text-white">{workout.title}</Text>
         <View className="flex-row gap-4">
@@ -141,15 +132,8 @@ export default function WorkoutDetailScreen() {
           {workout.ended_at && (
             <Stat label="Time" value={formatDuration(workout.started_at, workout.ended_at)} />
           )}
-          <Stat label="EXP" value={`+${workout.exp_earned}`} highlight />
         </View>
       </View>
-
-      {exercises.length > 0 && (
-        <View className="mb-4 rounded-2xl bg-surface p-4">
-          <MuscleMap activation={activation} title="Muscles Worked" />
-        </View>
-      )}
 
       {exercises.map((exercise) => (
         <View key={exercise.name} className="mb-3 rounded-2xl bg-surface p-4">
@@ -172,8 +156,9 @@ export default function WorkoutDetailScreen() {
                 {Number(set.weight).toLocaleString()} lbs × {set.reps}
               </Text>
               {set.is_pr && (
-                <View className="rounded-full bg-accent/20 px-2.5 py-1">
-                  <Text className="text-xs font-bold text-accent">🏅 PR</Text>
+                <View className="flex-row items-center gap-1 rounded-full bg-accent/20 px-2.5 py-1">
+                  <Medal size={12} color="#F59E0B" strokeWidth={2} />
+                  <Text className="text-xs font-bold text-accent">PR</Text>
                 </View>
               )}
             </View>
@@ -188,21 +173,13 @@ export default function WorkoutDetailScreen() {
   );
 }
 
-function Stat({
-  label,
-  value,
-  highlight,
-}: {
-  label: string;
-  value: string;
-  highlight?: boolean;
-}) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
     <View>
-      <Text className="text-xs text-muted">{label}</Text>
-      <Text className={`font-bold ${highlight ? 'text-primary' : 'text-white'}`}>
-        {value}
+      <Text className="text-[10px] font-semibold uppercase tracking-wider text-muted">
+        {label}
       </Text>
+      <Text className="text-base font-extrabold text-white">{value}</Text>
     </View>
   );
 }
