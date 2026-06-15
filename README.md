@@ -45,6 +45,36 @@ npx expo start         # scan the QR code with Expo Go
 > which isn't bundled in Expo Go. Use a development build (`npx expo run:ios` /
 > `run:android`, or an EAS dev build) to exercise that flow.
 
+## Shipping to the App Store
+
+The app is configured for EAS Build (`eas.json`), iOS bundle id
+`com.kova.fitness`, and native Sign in with Apple. Remaining steps that need
+your Apple/Supabase accounts:
+
+1. **Install the tooling and link the project**
+   ```bash
+   npm install -g eas-cli
+   eas login
+   eas init            # creates the EAS project + writes extra.eas.projectId
+   ```
+2. **Configure Sign in with Apple** (so the native button works):
+   - Apple Developer → enable the *Sign in with Apple* capability on the
+     `com.kova.fitness` App ID, and create the Services ID `com.kova.fitness.service`.
+   - Supabase → Authentication → Providers → Apple: add the **bundle id**
+     `com.kova.fitness` to the authorized client IDs (for native sign-in) and the
+     services id `com.kova.fitness.service` (for the web fallback).
+3. **Host the privacy policy** ([`PRIVACY.md`](./PRIVACY.md)) at a public URL and
+   add it in App Store Connect (fill in the contact email first).
+4. **Build & submit**
+   ```bash
+   eas build --platform ios --profile preview      # internal test build (TestFlight-style)
+   eas build --platform ios --profile production
+   eas submit --platform ios --profile production
+   ```
+5. **App Store Connect**: create the app record, complete the privacy
+   "nutrition label" (data collected: account, fitness, photos, user content),
+   add screenshots, description, category, and age rating.
+
 ## Project layout
 
 ```

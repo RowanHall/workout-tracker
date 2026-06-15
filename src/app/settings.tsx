@@ -36,6 +36,32 @@ export default function SettingsScreen() {
   const name = profile?.display_name ?? profile?.username ?? '';
 
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  function handleDeleteAccount() {
+    Alert.alert(
+      'Delete account?',
+      'This permanently erases your account, workouts, stats, follows, and photos. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            const { error } = await supabase.rpc('delete_account');
+            if (error) {
+              setDeleting(false);
+              Alert.alert('Could not delete account', error.message);
+              return;
+            }
+            // Account is gone; clear the local session to return to sign-in.
+            await supabase.auth.signOut();
+          },
+        },
+      ]
+    );
+  }
 
   const [notifSettings, setNotifSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS);
   const [notifPermGranted, setNotifPermGranted] = useState(false);
@@ -339,6 +365,16 @@ export default function SettingsScreen() {
           onPress={() => supabase.auth.signOut()}
         >
           <Text className="font-semibold text-danger">Sign Out</Text>
+        </Pressable>
+
+        <Pressable
+          className="mt-3 items-center py-3.5 active:opacity-70 disabled:opacity-50"
+          disabled={deleting}
+          onPress={handleDeleteAccount}
+        >
+          <Text className="text-sm font-medium text-muted">
+            {deleting ? 'Deleting account…' : 'Delete Account'}
+          </Text>
         </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>

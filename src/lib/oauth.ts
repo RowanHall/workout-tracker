@@ -1,3 +1,4 @@
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import * as WebBrowser from 'expo-web-browser';
@@ -31,6 +32,63 @@ export async function signInWithOAuth(provider: OAuthProvider) {
   if (result.type !== 'success') return null; // cancelled / dismissed
 
   return createSessionFromUrl(result.url);
+}
+
+/** Whether the native "Sign in with Apple" sheet is usable (iOS 13+ device). */
+export async function isAppleSignInAvailable(): Promise<boolean> {
+  try {
+    return await AppleAuthentication.isAvailableAsync();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Native Sign in with Apple. Opens the system sheet, then exchanges the
+ * returned identity token for a Supabase session via `signInWithIdToken`.
+ * Returns null if the user cancelled the sheet.
+ *
+ * Apple sends the user's real name only on the *first* authorization, so we
+ * persist it to user metadata (and the profile) when present; later sign-ins
+ * legitimately omit it.
+ */
+export async function signInWithAppleNative() {
+  let credential: AppleAuthentication.AppleAuthenticationCredential;
+  try {
+    credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+    });
+  } catch (err: any) {
+    if (err?.code === 'ERR_REQUEST_CANCELED') return null;
+    throw err;
+  }
+
+  if (!credential.identityToken) {
+    throw new Error('Apple did not return an identity token. Please try again.');
+  }
+
+  const { data, error } = await supabase.auth.signInWithIdToken({
+    provider: 'apple',
+    token: credential.identityToken,
+  });
+  if (error) throw error;
+
+  const name = [credential.fullName?.givenName, credential.fullName?.familyName]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  if (name && data.user) {
+    // Apple only sends the name on the first authorization (account creation),
+    // and it never appears in the JWT, so the DB trigger can't see it. Carry it
+    // into auth metadata and the freshly-created profile here.
+    await supabase.auth.updateUser({ data: { full_name: name, display_name: name } });
+    await supabase.from('profiles').update({ display_name: name }).eq('id', data.user.id);
+  }
+
+  return data.session;
 }
 
 async function createSessionFromUrl(url: string) {

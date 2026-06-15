@@ -1,8 +1,14 @@
 import { FontAwesome } from '@expo/vector-icons';
-import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Platform, Pressable, Text, View } from 'react-native';
 
-import { signInWithOAuth, type OAuthProvider } from '@/lib/oauth';
+import {
+  isAppleSignInAvailable,
+  signInWithAppleNative,
+  signInWithOAuth,
+  type OAuthProvider,
+} from '@/lib/oauth';
 
 const PROVIDERS: {
   key: OAuthProvider;
@@ -17,6 +23,13 @@ const PROVIDERS: {
 /** Social sign-in row shared by the sign-in and sign-up screens. */
 export function OAuthButtons() {
   const [busy, setBusy] = useState<OAuthProvider | null>(null);
+  const [appleNative, setAppleNative] = useState(false);
+
+  useEffect(() => {
+    // On iOS we use Apple's native sign-in sheet + button (required by Apple's
+    // Human Interface Guidelines). Elsewhere, Apple falls back to web OAuth.
+    if (Platform.OS === 'ios') isAppleSignInAvailable().then(setAppleNative);
+  }, []);
 
   async function handlePress(provider: OAuthProvider) {
     setBusy(provider);
@@ -29,6 +42,21 @@ export function OAuthButtons() {
     }
   }
 
+  async function handleAppleNative() {
+    setBusy('apple');
+    try {
+      await signInWithAppleNative();
+    } catch (err: any) {
+      Alert.alert('Sign in failed', err.message ?? 'Please try again.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // Apple is rendered as its own native button on iOS; the rest stay as the
+  // shared web-OAuth buttons.
+  const webProviders = appleNative ? PROVIDERS.filter((p) => p.key !== 'apple') : PROVIDERS;
+
   return (
     <View>
       <View className="my-5 flex-row items-center gap-3">
@@ -38,7 +66,17 @@ export function OAuthButtons() {
       </View>
 
       <View className="gap-3">
-        {PROVIDERS.map((provider) => (
+        {appleNative && (
+          <AppleAuthentication.AppleAuthenticationButton
+            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+            cornerRadius={12}
+            style={{ height: 48, width: '100%' }}
+            onPress={handleAppleNative}
+          />
+        )}
+
+        {webProviders.map((provider) => (
           <Pressable
             key={provider.key}
             className="h-12 flex-row items-center justify-center gap-3 rounded-xl border border-border bg-surface active:opacity-70 disabled:opacity-50"
