@@ -1,7 +1,7 @@
 import { decode } from 'base64-arraybuffer';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { Bell, Camera } from 'lucide-react-native';
+import { Bell, Camera, Crown, Download } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
@@ -26,9 +26,11 @@ import {
   type NotificationSettings,
   type ReminderIntensity,
 } from '@/lib/notificationSettings';
+import { exportWorkoutsCsv } from '@/lib/export';
 import { supabase } from '@/lib/supabase';
 import type { BodyWeight } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
+import { usePremium } from '@/providers/PremiumProvider';
 
 export default function SettingsScreen() {
   const { session, profile, refreshProfile } = useAuth();
@@ -36,6 +38,51 @@ export default function SettingsScreen() {
   const name = profile?.display_name ?? profile?.username ?? '';
 
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const { isPremium } = usePremium();
+
+  async function handleExport() {
+    if (!isPremium) {
+      router.push('/premium');
+      return;
+    }
+    if (!userId) return;
+    setExporting(true);
+    try {
+      await exportWorkoutsCsv(userId);
+    } catch (err: any) {
+      Alert.alert('Export failed', err?.message ?? 'Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  function handleDeleteAccount() {
+    Alert.alert(
+      'Delete account?',
+      'This permanently erases your account, workouts, stats, follows, and photos. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            const { error } = await supabase.rpc('delete_account');
+            if (error) {
+              setDeleting(false);
+              Alert.alert('Could not delete account', error.message);
+              return;
+            }
+            // Account is gone; clear the local session to return to sign-in.
+            await supabase.auth.signOut();
+          },
+        },
+      ]
+    );
+  }
 
   const [notifSettings, setNotifSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS);
   const [notifPermGranted, setNotifPermGranted] = useState(false);
@@ -327,6 +374,29 @@ export default function SettingsScreen() {
           )}
         </View>
 
+        <SectionLabel>Data</SectionLabel>
+        <Pressable
+          className="mb-6 flex-row items-center gap-3 rounded-2xl bg-surface p-4 active:opacity-70 disabled:opacity-50"
+          disabled={exporting}
+          onPress={handleExport}
+        >
+          <View className="h-10 w-10 items-center justify-center rounded-xl bg-primary/15">
+            <Download size={20} color="#22C55E" />
+          </View>
+          <View className="flex-1">
+            <Text className="text-base font-semibold text-white">Export workouts</Text>
+            <Text className="mt-0.5 text-sm text-muted">
+              {exporting ? 'Preparing your file…' : 'Download every set as a CSV/Excel file'}
+            </Text>
+          </View>
+          {!isPremium && (
+            <View className="flex-row items-center gap-1 rounded-full bg-primary/15 px-2.5 py-1">
+              <Crown size={12} color="#22C55E" />
+              <Text className="text-xs font-semibold text-primary">Premium</Text>
+            </View>
+          )}
+        </Pressable>
+
         <SectionLabel>Account</SectionLabel>
         <View className="mb-6 overflow-hidden rounded-2xl bg-surface">
           <Row label="Username" value={`@${profile?.username ?? ''}`} />
@@ -339,6 +409,16 @@ export default function SettingsScreen() {
           onPress={() => supabase.auth.signOut()}
         >
           <Text className="font-semibold text-danger">Sign Out</Text>
+        </Pressable>
+
+        <Pressable
+          className="mt-3 items-center py-3.5 active:opacity-70 disabled:opacity-50"
+          disabled={deleting}
+          onPress={handleDeleteAccount}
+        >
+          <Text className="text-sm font-medium text-muted">
+            {deleting ? 'Deleting account…' : 'Delete Account'}
+          </Text>
         </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>

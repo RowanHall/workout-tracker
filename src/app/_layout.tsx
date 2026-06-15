@@ -6,6 +6,7 @@ import { ActivityIndicator, View } from 'react-native';
 
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
 import { NotificationsManager } from '@/providers/NotificationsManager';
+import { PremiumProvider } from '@/providers/PremiumProvider';
 
 function RootNavigator() {
   const { session, loading } = useAuth();
@@ -105,8 +106,10 @@ function RootNavigator() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <StatusBar style="light" />
-      <RootNavigator />
+      <PremiumProvider>
+        <StatusBar style="light" />
+        <RootNavigator />
+      </PremiumProvider>
     </AuthProvider>
   );
 }

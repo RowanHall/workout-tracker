@@ -45,6 +45,65 @@ npx expo start         # scan the QR code with Expo Go
 > which isn't bundled in Expo Go. Use a development build (`npx expo run:ios` /
 > `run:android`, or an EAS dev build) to exercise that flow.
 
+## Shipping to the App Store
+
+The app is configured for EAS Build (`eas.json`), iOS bundle id
+`com.kova.fitness`, and native Sign in with Apple. Remaining steps that need
+your Apple/Supabase accounts:
+
+1. **Install the tooling and link the project**
+   ```bash
+   npm install -g eas-cli
+   eas login
+   eas init            # creates the EAS project + writes extra.eas.projectId
+   ```
+2. **Configure Sign in with Apple** (so the native button works):
+   - Apple Developer → enable the *Sign in with Apple* capability on the
+     `com.kova.fitness` App ID, and create the Services ID `com.kova.fitness.service`.
+   - Supabase → Authentication → Providers → Apple: add the **bundle id**
+     `com.kova.fitness` to the authorized client IDs (for native sign-in) and the
+     services id `com.kova.fitness.service` (for the web fallback).
+3. **Host the privacy policy** ([`PRIVACY.md`](./PRIVACY.md)) at a public URL and
+   add it in App Store Connect (fill in the contact email first).
+4. **Build & submit**
+   ```bash
+   eas build --platform ios --profile preview      # internal test build (TestFlight-style)
+   eas build --platform ios --profile production
+   eas submit --platform ios --profile production
+   ```
+5. **App Store Connect**: create the app record, complete the privacy
+   "nutrition label" (data collected: account, fitness, photos, user content),
+   add screenshots, description, category, and age rating.
+
+## Premium subscriptions (RevenueCat)
+
+Kova Premium is an auto-renewing subscription (monthly + annual, with a free
+trial) handled by **RevenueCat** over StoreKit. The live perk is CSV/Excel
+**data export** (Settings → Data); the paywall lives in the **Premium** tab.
+The app runs fine without any of this configured — premium just shows as locked.
+
+To turn it on:
+
+1. **App Store Connect → Subscriptions**: create a subscription group (e.g.
+   "Kova Premium") with two auto-renewable products, and add a 7-day free trial
+   as an introductory offer on each:
+   - `com.kova.fitness.premium.monthly` — $5.99/month
+   - `com.kova.fitness.premium.annual` — e.g. $39.99/year
+   Also accept the **Paid Applications Agreement** and add tax/banking info, or
+   purchases can't be sold.
+2. **RevenueCat**: create a project, connect the App Store app (App Store
+   Connect API key), create an **entitlement with the exact id `premium`**,
+   attach both products to it, and add them to the default **Offering** as the
+   Monthly and Annual packages.
+3. **Set the SDK key**: copy RevenueCat's iOS **public** key into
+   `EXPO_PUBLIC_REVENUECAT_IOS_KEY` — in `eas.json` (build profiles) for cloud
+   builds, and in `.env` for local dev builds.
+4. **Test on a build** (not Expo Go): create a Sandbox tester in App Store
+   Connect, install a dev/TestFlight build, and run through purchase + restore.
+
+> The entitlement id (`premium`) and the App Store product ids must match what
+> you configure in RevenueCat — see `src/providers/PremiumProvider.tsx`.
+
 ## Project layout
 
 ```

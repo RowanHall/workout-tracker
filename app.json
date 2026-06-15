@@ -8,11 +8,16 @@
     "scheme": "kova",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "bundleIdentifier": "com.kova.fitness",
+      "buildNumber": "1",
+      "usesAppleSignIn": true,
+      "supportsTablet": false
     },
     "android": {
+      "package": "com.kova.fitness",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#0B0F14",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -24,14 +29,13 @@
     },
     "plugins": [
       "expo-router",
+      "expo-apple-authentication",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
-          "android": {
-            "image": "./assets/images/splash-icon.png",
-            "imageWidth": 76
-          }
+          "backgroundColor": "#0B0F14",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 120
         }
       ],
       [
