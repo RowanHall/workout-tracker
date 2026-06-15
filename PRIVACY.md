@@ -3,7 +3,7 @@
 _Last updated: 2026-06-15_
 
 Kova ("we", "us") is a workout-tracking app. This policy explains what data the
-app collects, why, and the choices you have. Questions: **[INSERT CONTACT EMAIL]**.
+app collects, why, and the choices you have. Questions: **rowancedarhall@gmail.com**.
 
 ## Information we collect
 
@@ -65,4 +65,4 @@ updated" date above.
 
 ## Contact
 
-**[INSERT CONTACT EMAIL]**
+**rowancedarhall@gmail.com**
