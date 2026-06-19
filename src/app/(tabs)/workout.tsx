@@ -1,20 +1,25 @@
 import { router, useFocusEffect } from 'expo-router';
 import { Check, Dumbbell, Flame, Moon, Plus, Trash2 } from 'lucide-react-native';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ExercisePicker } from '@/components/ExercisePicker';
+import { MuscleMap } from '@/components/MuscleMap';
 import { RestTimer } from '@/components/RestTimer';
 import type { ShareStats } from '@/components/ShareableWorkoutCard';
 import { WeekTracker } from '@/components/WeekTracker';
@@ -23,9 +28,10 @@ import { WorkoutSummaryModal } from '@/components/WorkoutSummaryModal';
 import { useActiveWorkout, type WorkoutEntry } from '@/hooks/useActiveWorkout';
 import { displayStreak } from '@/lib/streak';
 import { dateKey, formatDuration } from '@/lib/format';
+import { mergeMuscles } from '@/lib/muscles';
 import { fireMilestoneIfDue, resetMilestoneTracker } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
-import type { WorkoutSummary } from '@/lib/types';
+import type { ExerciseMuscle, WorkoutSummary } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
 
 export default function WorkoutScreen() {
@@ -45,6 +51,7 @@ export default function WorkoutScreen() {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [restTrigger, setRestTrigger] = useState(0);
   const [summary, setSummary] = useState<WorkoutSummary | null>(null);
+  const [summaryMuscles, setSummaryMuscles] = useState<ExerciseMuscle[]>([]);
   const [shareStats, setShareStats] = useState<ShareStats | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [finishing, setFinishing] = useState(false);
@@ -115,12 +122,16 @@ export default function WorkoutScreen() {
     }
     setFinishing(true);
     // Captured before finish() clears the active workout, so the share card can
-    // show its title and duration.
+    // show its title and duration, and the summary muscle map can render.
     const finishedWorkout = workout;
+    const mergedMuscles = mergeMuscles(
+      entries.filter((e) => e.sets.length > 0).map((e) => e.exercise.muscles ?? [])
+    );
     try {
       const result = await finish();
       if (result && !result.discarded) {
         const endedIso = new Date().toISOString();
+        setSummaryMuscles(mergedMuscles);
         setShareStats({
           title: finishedWorkout?.title ?? 'Workout',
           dateIso: endedIso,
@@ -219,6 +230,7 @@ export default function WorkoutScreen() {
         </View>
         <WorkoutSummaryModal
           summary={summary}
+          muscles={summaryMuscles}
           onClose={() => setSummary(null)}
           onShare={shareStats ? () => setShareOpen(true) : undefined}
         />
@@ -280,28 +292,15 @@ export default function WorkoutScreen() {
           </View>
         </View>
 
-        <ScrollView className="flex-1 px-4" keyboardShouldPersistTaps="handled">
-          {entries.map((entry, index) => (
-            <ExerciseBlock
-              key={entry.exercise.id}
-              order={index + 1}
-              entry={entry}
-              onLogSet={async (weight, reps) => {
-                await logSet(entry.exercise.id, weight, reps);
-                setRestTrigger((t) => t + 1);
-              }}
-              onDeleteSet={(setId) => deleteSet(entry.exercise.id, setId)}
-            />
-          ))}
-
-          <Pressable
-            className="mb-6 mt-1 flex-row items-center justify-center gap-2 rounded-2xl border border-dashed border-border py-4 active:opacity-70"
-            onPress={() => setPickerVisible(true)}
-          >
-            <Plus size={18} color="#22C55E" strokeWidth={2.25} />
-            <Text className="font-semibold text-primary">Add Exercise</Text>
-          </Pressable>
-        </ScrollView>
+        <ExercisePager
+          entries={entries}
+          onAddPress={() => setPickerVisible(true)}
+          onLogSet={async (exerciseId, weight, reps) => {
+            await logSet(exerciseId, weight, reps);
+            setRestTrigger((t) => t + 1);
+          }}
+          onDeleteSet={(exerciseId, setId) => deleteSet(exerciseId, setId)}
+        />
 
         <View className="px-4 pb-2">
           <RestTimer trigger={restTrigger} />
@@ -315,6 +314,7 @@ export default function WorkoutScreen() {
       />
       <WorkoutSummaryModal
         summary={summary}
+        muscles={summaryMuscles}
         onClose={() => setSummary(null)}
         onShare={shareStats ? () => setShareOpen(true) : undefined}
       />
@@ -355,12 +355,131 @@ function ElapsedTime({ since }: { since: string }) {
   );
 }
 
-function ExerciseBlock({
+interface PageItem {
+  kind: 'exercise' | 'add';
+  entry?: WorkoutEntry;
+}
+
+function ExercisePager({
+  entries,
+  onAddPress,
+  onLogSet,
+  onDeleteSet,
+}: {
+  entries: WorkoutEntry[];
+  onAddPress: () => void;
+  onLogSet: (exerciseId: number, weight: number, reps: number) => Promise<void>;
+  onDeleteSet: (exerciseId: number, setId: string) => void;
+}) {
+  const { width } = useWindowDimensions();
+  const listRef = useRef<FlatList<PageItem>>(null);
+  const [page, setPage] = useState(0);
+  const prevEntryCount = useRef(entries.length);
+
+  const pages = useMemo<PageItem[]>(
+    () => [...entries.map((e) => ({ kind: 'exercise' as const, entry: e })), { kind: 'add' as const }],
+    [entries]
+  );
+
+  // Auto-scroll to a freshly added exercise so the user lands on its card.
+  useEffect(() => {
+    if (entries.length > prevEntryCount.current) {
+      const target = entries.length - 1;
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToIndex({ index: target, animated: true });
+      });
+    }
+    prevEntryCount.current = entries.length;
+  }, [entries.length]);
+
+  function handleMomentumEnd(e: NativeSyntheticEvent<NativeScrollEvent>) {
+    const next = Math.round(e.nativeEvent.contentOffset.x / width);
+    if (next !== page) setPage(next);
+  }
+
+  return (
+    <View className="flex-1">
+      <FlatList
+        ref={listRef}
+        data={pages}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        onMomentumScrollEnd={handleMomentumEnd}
+        getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
+        keyExtractor={(item) =>
+          item.kind === 'add' ? 'add' : `ex-${item.entry!.exercise.id}`
+        }
+        renderItem={({ item, index }) =>
+          item.kind === 'add' ? (
+            <AddExercisePage width={width} onPress={onAddPress} hasExercises={entries.length > 0} />
+          ) : (
+            <ExerciseCard
+              width={width}
+              order={index + 1}
+              entry={item.entry!}
+              onLogSet={(weight, reps) => onLogSet(item.entry!.exercise.id, weight, reps)}
+              onDeleteSet={(setId) => onDeleteSet(item.entry!.exercise.id, setId)}
+            />
+          )
+        }
+      />
+      <PageDots count={pages.length} active={page} />
+    </View>
+  );
+}
+
+function PageDots({ count, active }: { count: number; active: number }) {
+  return (
+    <View className="flex-row items-center justify-center gap-1.5 py-2">
+      {Array.from({ length: count }).map((_, i) => (
+        <View
+          key={i}
+          className={`h-1.5 rounded-full ${
+            i === active ? 'w-5 bg-primary' : 'w-1.5 bg-border'
+          }`}
+        />
+      ))}
+    </View>
+  );
+}
+
+function AddExercisePage({
+  width,
+  onPress,
+  hasExercises,
+}: {
+  width: number;
+  onPress: () => void;
+  hasExercises: boolean;
+}) {
+  return (
+    <View style={{ width }} className="items-center justify-center px-6">
+      <Pressable
+        className="h-32 w-32 items-center justify-center rounded-full bg-primary active:opacity-80"
+        onPress={onPress}
+      >
+        <Plus size={56} color="#0B0F14" strokeWidth={2.5} />
+      </Pressable>
+      <Text className="mt-5 text-lg font-bold text-white">
+        {hasExercises ? 'Add another exercise' : 'Pick your first exercise'}
+      </Text>
+      <Text className="mt-1 text-center text-sm text-muted">
+        {hasExercises ? 'Swipe back to keep logging sets.' : 'Tap the + to choose what you’re training.'}
+      </Text>
+    </View>
+  );
+}
+
+function ExerciseCard({
+  width,
   order,
   entry,
   onLogSet,
   onDeleteSet,
 }: {
+  width: number;
   order: number;
   entry: WorkoutEntry;
   onLogSet: (weight: number, reps: number) => Promise<void>;
@@ -389,66 +508,77 @@ function ExerciseBlock({
   }
 
   return (
-    <View className="mb-3 rounded-2xl bg-surface p-4">
-      <View className="mb-3 flex-row items-center">
-        <View className="mr-3 h-8 w-8 items-center justify-center rounded-lg bg-surface-2">
-          <Text className="text-sm font-bold text-primary">{order}</Text>
-        </View>
-        <View className="flex-1">
-          <Text className="text-base font-bold text-white">{entry.exercise.name}</Text>
-          <Text className="text-xs capitalize text-muted">
-            {entry.exercise.muscle_group.replace('_', ' ')}
-          </Text>
-        </View>
-        {entry.sets.length > 0 && (
-          <View className="rounded-full bg-surface-2 px-2.5 py-1">
-            <Text className="text-xs font-semibold text-muted">
-              {entry.sets.length} {entry.sets.length === 1 ? 'set' : 'sets'}
+    <View style={{ width }} className="px-4">
+      <ScrollView
+        className="flex-1 rounded-2xl bg-surface"
+        contentContainerClassName="p-4"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View className="mb-3 flex-row items-center">
+          <View className="mr-3 h-8 w-8 items-center justify-center rounded-lg bg-surface-2">
+            <Text className="text-sm font-bold text-primary">{order}</Text>
+          </View>
+          <View className="flex-1">
+            <Text className="text-base font-bold text-white">{entry.exercise.name}</Text>
+            <Text className="text-xs capitalize text-muted">
+              {entry.exercise.muscle_group.replace('_', ' ')}
             </Text>
           </View>
-        )}
-      </View>
+          {entry.sets.length > 0 && (
+            <View className="rounded-full bg-surface-2 px-2.5 py-1">
+              <Text className="text-xs font-semibold text-muted">
+                {entry.sets.length} {entry.sets.length === 1 ? 'set' : 'sets'}
+              </Text>
+            </View>
+          )}
+        </View>
 
-      {entry.sets.map((set) => (
-        <View
-          key={set.id}
-          className="mb-1.5 flex-row items-center rounded-xl bg-surface-2 px-3 py-2.5"
-        >
-          <Text className="w-12 font-bold text-primary">#{set.set_number}</Text>
-          <Text className="flex-1 text-white">
-            {set.weight} lbs × {set.reps}
-          </Text>
-          <Pressable onPress={() => onDeleteSet(set.id)} hitSlop={8}>
-            <Trash2 size={16} color="#8B98A9" strokeWidth={1.75} />
+        <View className="mb-2 flex-row items-center gap-2">
+          <TextInput
+            className="flex-1 rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-center text-white"
+            placeholder="lbs"
+            placeholderTextColor="#8B98A9"
+            keyboardType="decimal-pad"
+            value={weight}
+            onChangeText={setWeight}
+          />
+          <TextInput
+            className="flex-1 rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-center text-white"
+            placeholder="reps"
+            placeholderTextColor="#8B98A9"
+            keyboardType="number-pad"
+            value={reps}
+            onChangeText={setReps}
+          />
+          <Pressable
+            className="rounded-xl bg-primary px-4 py-2.5 active:opacity-80 disabled:opacity-50"
+            disabled={logging}
+            onPress={handleLog}
+          >
+            <Check size={20} color="#0B0F14" strokeWidth={2.5} />
           </Pressable>
         </View>
-      ))}
 
-      <View className="mt-2 flex-row items-center gap-2">
-        <TextInput
-          className="flex-1 rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-center text-white"
-          placeholder="lbs"
-          placeholderTextColor="#8B98A9"
-          keyboardType="decimal-pad"
-          value={weight}
-          onChangeText={setWeight}
-        />
-        <TextInput
-          className="flex-1 rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-center text-white"
-          placeholder="reps"
-          placeholderTextColor="#8B98A9"
-          keyboardType="number-pad"
-          value={reps}
-          onChangeText={setReps}
-        />
-        <Pressable
-          className="rounded-xl bg-primary px-4 py-2.5 active:opacity-80 disabled:opacity-50"
-          disabled={logging}
-          onPress={handleLog}
-        >
-          <Check size={20} color="#0B0F14" strokeWidth={2.5} />
-        </Pressable>
-      </View>
+        {entry.sets.map((set) => (
+          <View
+            key={set.id}
+            className="mb-1.5 flex-row items-center rounded-xl bg-surface-2 px-3 py-2.5"
+          >
+            <Text className="w-12 font-bold text-primary">#{set.set_number}</Text>
+            <Text className="flex-1 text-white">
+              {set.weight} lbs × {set.reps}
+            </Text>
+            <Pressable onPress={() => onDeleteSet(set.id)} hitSlop={8}>
+              <Trash2 size={16} color="#8B98A9" strokeWidth={1.75} />
+            </Pressable>
+          </View>
+        ))}
+
+        <View className="mt-3">
+          <MuscleMap muscles={entry.exercise.muscles ?? []} />
+        </View>
+      </ScrollView>
     </View>
   );
 }

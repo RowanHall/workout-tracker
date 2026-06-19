@@ -2,23 +2,26 @@ import { Medal, Share2 } from 'lucide-react-native';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
+import { MuscleMap } from '@/components/MuscleMap';
 import { useCountUp } from '@/hooks/useCountUp';
-import type { WorkoutSummary } from '@/lib/types';
+import type { ExerciseMuscle, WorkoutSummary } from '@/lib/types';
 
 interface WorkoutSummaryModalProps {
   summary: WorkoutSummary | null;
   onClose: () => void;
   /** When provided, shows a "Share workout" button beside Continue. */
   onShare?: () => void;
+  /** Combined muscle activation across every logged exercise. */
+  muscles?: ExerciseMuscle[];
 }
 
-export function WorkoutSummaryModal({ summary, onClose, onShare }: WorkoutSummaryModalProps) {
+export function WorkoutSummaryModal({ summary, onClose, onShare, muscles }: WorkoutSummaryModalProps) {
   if (!summary) return null;
   return (
     <Modal visible transparent animationType="fade">
       <View className="flex-1 items-center justify-center bg-black/80 px-5">
         <View className="w-full rounded-3xl bg-surface p-6">
-          <SummaryContent summary={summary} />
+          <SummaryContent summary={summary} muscles={muscles} />
           <Animated.View entering={FadeIn.delay(1600)} className="gap-2.5">
             {onShare && (
               <Pressable
@@ -42,10 +45,16 @@ export function WorkoutSummaryModal({ summary, onClose, onShare }: WorkoutSummar
   );
 }
 
-function SummaryContent({ summary }: { summary: WorkoutSummary }) {
+function SummaryContent({
+  summary,
+  muscles,
+}: {
+  summary: WorkoutSummary;
+  muscles?: ExerciseMuscle[];
+}) {
   const volume = useCountUp(summary.total_volume, 900, 500);
   // Reveal timeline (ms): header 0 → volume counter 300 (runs 500-1400) →
-  // stats row 600 → PRs from 1400.
+  // stats row 600 → muscle map 900 → PRs from 1400.
   const prBase = 1400;
 
   return (
@@ -86,6 +95,18 @@ function SummaryContent({ summary }: { summary: WorkoutSummary }) {
           highlight={summary.prs.length > 0}
         />
       </Animated.View>
+
+      {muscles && muscles.length > 0 && (
+        <Animated.View
+          entering={FadeInDown.delay(900).duration(350)}
+          className="mb-4 rounded-2xl bg-surface-2 p-4"
+        >
+          <Text className="mb-3 text-center text-xs font-semibold uppercase tracking-widest text-muted">
+            Muscles Worked
+          </Text>
+          <MuscleMap muscles={muscles} />
+        </Animated.View>
+      )}
 
       {summary.prs.length > 0 && (
         <View className="mb-4">

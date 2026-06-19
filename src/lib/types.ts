@@ -24,10 +24,42 @@ export interface Profile {
   preferred_unit: 'lbs' | 'kg';
 }
 
+/** Body parts the `react-native-body-highlighter` library understands. */
+export type MuscleSlug =
+  | 'abs'
+  | 'adductors'
+  | 'ankles'
+  | 'biceps'
+  | 'calves'
+  | 'chest'
+  | 'deltoids'
+  | 'feet'
+  | 'forearm'
+  | 'gluteal'
+  | 'hamstring'
+  | 'hands'
+  | 'head'
+  | 'knees'
+  | 'lower-back'
+  | 'neck'
+  | 'obliques'
+  | 'quadriceps'
+  | 'tibialis'
+  | 'trapezius'
+  | 'triceps'
+  | 'upper-back';
+
+export interface ExerciseMuscle {
+  slug: MuscleSlug;
+  /** 2 = primary mover, 1 = secondary/synergist. */
+  intensity: 1 | 2;
+}
+
 export interface Exercise {
   id: number;
   name: string;
   muscle_group: MuscleGroup;
+  muscles: ExerciseMuscle[];
   is_custom: boolean;
 }
 

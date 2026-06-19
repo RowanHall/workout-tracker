@@ -6,13 +6,15 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import type { ShareStats } from '@/components/ShareableWorkoutCard';
 import { WorkoutShareSheet } from '@/components/WorkoutShareSheet';
 import { Avatar } from '@/components/Avatar';
+import { MuscleMap } from '@/components/MuscleMap';
 import { formatDuration, formatVolume, timeAgo } from '@/lib/format';
+import { mergeMuscles } from '@/lib/muscles';
 import { supabase } from '@/lib/supabase';
-import type { MuscleGroup, Workout, WorkoutSet } from '@/lib/types';
+import type { ExerciseMuscle, MuscleGroup, Workout, WorkoutSet } from '@/lib/types';
 
 interface DetailSet extends WorkoutSet {
   created_at: string;
-  exercises: { name: string; muscle_group: MuscleGroup };
+  exercises: { name: string; muscle_group: MuscleGroup; muscles: ExerciseMuscle[] };
 }
 
 interface WorkoutDetail extends Workout {
@@ -27,6 +29,7 @@ interface WorkoutDetail extends Workout {
 interface ExerciseGroup {
   name: string;
   muscleGroup: MuscleGroup;
+  muscles: ExerciseMuscle[];
   sets: DetailSet[];
 }
 
@@ -53,6 +56,7 @@ function groupByExercise(sets: DetailSet[]): ExerciseGroup[] {
       group = {
         name: set.exercises.name,
         muscleGroup: set.exercises.muscle_group,
+        muscles: set.exercises.muscles ?? [],
         sets: [],
       };
       groups.set(set.exercise_id, group);
@@ -78,7 +82,7 @@ export default function WorkoutDetailScreen() {
       .select(
         `*,
          profiles (username, display_name, avatar_url),
-         workout_sets (*, exercises (name, muscle_group))`
+         workout_sets (*, exercises (name, muscle_group, muscles))`
       )
       .eq('id', id)
       .maybeSingle()
@@ -109,6 +113,7 @@ export default function WorkoutDetailScreen() {
 
   const name = workout.profiles.display_name ?? workout.profiles.username;
   const exercises = groupByExercise(workout.workout_sets);
+  const combinedMuscles = mergeMuscles(exercises.map((e) => e.muscles));
   const prCount = workout.workout_sets.filter((s) => s.is_pr).length;
   const shareStats: ShareStats = {
     title: workout.title,
@@ -160,6 +165,15 @@ export default function WorkoutDetailScreen() {
             <Text className="text-xs font-semibold text-primary">Share</Text>
           </Pressable>
         </View>
+
+        {combinedMuscles.length > 0 && (
+          <View className="mt-4 rounded-2xl bg-surface-2 p-4">
+            <Text className="mb-3 text-center text-xs font-semibold uppercase tracking-widest text-muted">
+              Muscles Worked
+            </Text>
+            <MuscleMap muscles={combinedMuscles} />
+          </View>
+        )}
       </View>
 
       {exercises.map((exercise) => (
