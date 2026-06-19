@@ -27,7 +27,7 @@ import { WorkoutShareSheet } from '@/components/WorkoutShareSheet';
 import { WorkoutSummaryModal } from '@/components/WorkoutSummaryModal';
 import { useActiveWorkout, type WorkoutEntry } from '@/hooks/useActiveWorkout';
 import { displayStreak } from '@/lib/streak';
-import { dateKey, formatDuration } from '@/lib/format';
+import { dateKey, formatDuration, formatWeight } from '@/lib/format';
 import { mergeMuscles } from '@/lib/muscles';
 import { fireMilestoneIfDue, resetMilestoneTracker } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
@@ -133,6 +133,7 @@ export default function WorkoutScreen() {
         const endedIso = new Date().toISOString();
         setSummaryMuscles(mergedMuscles);
         setShareStats({
+          workoutId: finishedWorkout?.id ?? '',
           title: finishedWorkout?.title ?? 'Workout',
           dateIso: endedIso,
           volume: result.total_volume,
@@ -143,6 +144,7 @@ export default function WorkoutScreen() {
           prCount: result.prs.length,
           streak: result.streak,
           athleteName: profile?.display_name ?? profile?.username ?? null,
+          muscles: mergedMuscles,
         });
         setSummary(result);
         refreshProfile();
@@ -155,6 +157,14 @@ export default function WorkoutScreen() {
     } finally {
       setFinishing(false);
     }
+  }
+
+  // iOS won't present a second <Modal> over a visible one, so dismiss the
+  // summary modal first and wait for its dismiss animation before opening
+  // the share sheet.
+  function handleOpenShare() {
+    setSummary(null);
+    setTimeout(() => setShareOpen(true), 350);
   }
 
   function handleDiscard() {
@@ -232,7 +242,7 @@ export default function WorkoutScreen() {
           summary={summary}
           muscles={summaryMuscles}
           onClose={() => setSummary(null)}
-          onShare={shareStats ? () => setShareOpen(true) : undefined}
+          onShare={shareStats ? handleOpenShare : undefined}
         />
         <WorkoutShareSheet
           visible={shareOpen}
@@ -489,6 +499,15 @@ function ExerciseCard({
   const [reps, setReps] = useState('');
   const [logging, setLogging] = useState(false);
 
+  // The set the user is about to log mirrors the same position in the prior
+  // session; if they go past it, fall back to that session's last set.
+  const suggestion =
+    entry.previousSets[entry.sets.length] ??
+    entry.previousSets[entry.previousSets.length - 1] ??
+    null;
+  const weightPlaceholder = suggestion ? formatWeight(suggestion.weight) : 'lbs';
+  const repsPlaceholder = suggestion ? String(suggestion.reps) : 'reps';
+
   async function handleLog() {
     const w = parseFloat(weight);
     const r = parseInt(reps, 10);
@@ -537,7 +556,7 @@ function ExerciseCard({
         <View className="mb-2 flex-row items-center gap-2">
           <TextInput
             className="flex-1 rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-center text-white"
-            placeholder="lbs"
+            placeholder={weightPlaceholder}
             placeholderTextColor="#8B98A9"
             keyboardType="decimal-pad"
             value={weight}
@@ -545,7 +564,7 @@ function ExerciseCard({
           />
           <TextInput
             className="flex-1 rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-center text-white"
-            placeholder="reps"
+            placeholder={repsPlaceholder}
             placeholderTextColor="#8B98A9"
             keyboardType="number-pad"
             value={reps}

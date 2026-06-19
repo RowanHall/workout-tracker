@@ -1,208 +1,132 @@
-// Generates the Kova app-icon asset set from the brand chevron (the "Λ" mark
-// from the KOVΛ wordmark). Pure Node — no native image deps — so it runs
-// anywhere. Re-run with `node scripts/generate-icon.mjs` after tweaking the
-// geometry/colours below.
+// Generates the Kova app-icon asset set: the KOVΛ wordmark on the brand
+// dark surface, rendered with the same SF Pro Display Black Italic typeface
+// the in-app `KovaLogo` falls back to on iOS. Re-run with
+// `node scripts/generate-icon.mjs` after tweaking colours/spacing below.
 
-import zlib from 'node:zlib';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { createCanvas, GlobalFonts } from '@napi-rs/canvas';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(__dirname, '..', 'assets', 'images');
 
 // ---- Brand ----------------------------------------------------------------
-const GREEN_TOP = [0x2f, 0xd6, 0x76]; // lifted green for a "lit" top edge
-const GREEN = [0x22, 0xc5, 0x5e]; // primary
-const GREEN_BOTTOM = [0x16, 0xa3, 0x4a]; // primary-dim-ish
-const DARK = [0x0b, 0x0f, 0x14]; // background
+const GREEN = '#22C55E';
+const DARK = '#0B0F14';
+const WORDMARK = 'KOVΛ';
 
-// Chevron geometry, in a unit square (origin top-left, y down).
-const PEAK = [0.5, 0.28];
-const LEFT = [0.22, 0.72];
-const RIGHT = [0.78, 0.72];
-const HALF_W = 0.094; // half stroke width
+// SF Pro Display Black Italic is the system font the in-app wordmark resolves
+// to on iOS (fontWeight 900 + fontStyle italic). On macOS dev machines it
+// lives in /Library/Fonts; bail with a clear error if it's missing.
+const FONT_FAMILY = 'Kova Wordmark';
+const FONT_PATH = '/Library/Fonts/SF-Pro-Display-BlackItalic.otf';
+if (!fs.existsSync(FONT_PATH)) {
+  console.error(`Font not found at ${FONT_PATH}.`);
+  console.error('Install SF Pro from https://developer.apple.com/fonts/ or change FONT_PATH.');
+  process.exit(1);
+}
+GlobalFonts.registerFromPath(FONT_PATH, FONT_FAMILY);
 
-// ---- PNG encoding ---------------------------------------------------------
-const CRC_TABLE = (() => {
-  const t = new Uint32Array(256);
-  for (let n = 0; n < 256; n++) {
-    let c = n;
-    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-    t[n] = c >>> 0;
+// ---- Wordmark drawing -----------------------------------------------------
+/** Draw the KOVΛ wordmark centred in a `size`×`size` canvas, scaled to fit
+ *  the target box (widthFrac × heightFrac of the canvas). Returns the canvas. */
+function drawWordmark({ size, bg, color, widthFrac = 0.84, heightFrac = 0.42 }) {
+  const canvas = createCanvas(size, size);
+  const ctx = canvas.getContext('2d');
+
+  if (bg) {
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, size, size);
+  } else {
+    ctx.clearRect(0, 0, size, size);
   }
-  return t;
-})();
 
-function crc32(buf) {
-  let c = 0xffffffff;
-  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
-  return (c ^ 0xffffffff) >>> 0;
-}
+  // Match the in-app KovaLogo's tight tracking: letterSpacing = -0.04em.
+  // Canvas has no letterSpacing — draw glyph by glyph with adjusted advances.
+  const letters = [...WORDMARK];
+  const targetW = size * widthFrac;
+  const targetH = size * heightFrac;
 
-function chunk(type, data) {
-  const len = Buffer.alloc(4);
-  len.writeUInt32BE(data.length);
-  const typeBuf = Buffer.from(type, 'ascii');
-  const crc = Buffer.alloc(4);
-  crc.writeUInt32BE(crc32(Buffer.concat([typeBuf, data])));
-  return Buffer.concat([len, typeBuf, data, crc]);
-}
-
-function encodePNG(width, height, rgba, hasAlpha) {
-  const channels = hasAlpha ? 4 : 3;
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(width, 0);
-  ihdr.writeUInt32BE(height, 4);
-  ihdr[8] = 8; // bit depth
-  ihdr[9] = hasAlpha ? 6 : 2; // colour type: RGBA / RGB
-  const stride = width * channels;
-  const raw = Buffer.alloc((stride + 1) * height);
-  for (let y = 0; y < height; y++) {
-    raw[y * (stride + 1)] = 0; // filter: none
-    for (let x = 0; x < width; x++) {
-      const si = (y * width + x) * 4;
-      const di = y * (stride + 1) + 1 + x * channels;
-      raw[di] = rgba[si];
-      raw[di + 1] = rgba[si + 1];
-      raw[di + 2] = rgba[si + 2];
-      if (hasAlpha) raw[di + 3] = rgba[si + 3];
-    }
+  // Probe at an arbitrary "trial" font size, measure, then scale to fit both
+  // the width and height targets — whichever constraint is tighter wins.
+  const trial = 200;
+  ctx.font = `${trial}px "${FONT_FAMILY}"`;
+  const trialTracking = -0.04 * trial;
+  const trialWidths = letters.map((c) => ctx.measureText(c).width);
+  let trialAdvance = 0;
+  for (let i = 0; i < letters.length; i++) {
+    trialAdvance += trialWidths[i];
+    if (i < letters.length - 1) trialAdvance += trialTracking;
   }
-  const idat = zlib.deflateSync(raw, { level: 9 });
-  return Buffer.concat([
-    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-    chunk('IHDR', ihdr),
-    chunk('IDAT', idat),
-    chunk('IEND', Buffer.alloc(0)),
-  ]);
-}
+  const trialK = ctx.measureText('K');
+  const trialCapH = trialK.actualBoundingBoxAscent + trialK.actualBoundingBoxDescent;
 
-// ---- Geometry -------------------------------------------------------------
-function distToSegment(px, py, ax, ay, bx, by) {
-  const dx = bx - ax;
-  const dy = by - ay;
-  const len2 = dx * dx + dy * dy;
-  let t = len2 === 0 ? 0 : ((px - ax) * dx + (py - ay) * dy) / len2;
-  t = Math.max(0, Math.min(1, t));
-  const cx = ax + t * dx;
-  const cy = ay + t * dy;
-  return Math.hypot(px - cx, py - cy);
-}
+  const fontSize = Math.min(trial * (targetW / trialAdvance), trial * (targetH / trialCapH));
 
-function insideChevron(u, v, markScale) {
-  // markScale scales the displayed mark about the centre: < 1 shrinks it into
-  // the safe zone for assets that get masked (Android adaptive icons).
-  const mu = 0.5 + (u - 0.5) / markScale;
-  const mv = 0.5 + (v - 0.5) / markScale;
-  const d = Math.min(
-    distToSegment(mu, mv, LEFT[0], LEFT[1], PEAK[0], PEAK[1]),
-    distToSegment(mu, mv, PEAK[0], PEAK[1], RIGHT[0], RIGHT[1])
-  );
-  return d <= HALF_W;
-}
-
-function lerp(a, b, t) {
-  return [
-    Math.round(a[0] + (b[0] - a[0]) * t),
-    Math.round(a[1] + (b[1] - a[1]) * t),
-    Math.round(a[2] + (b[2] - a[2]) * t),
-  ];
-}
-
-// ---- Renderer -------------------------------------------------------------
-// background(u,v) -> [r,g,b,a] (a = 0 transparent, 255 opaque) or null.
-function render(size, { background, chevron, markScale = 1 }) {
-  const SS = 4; // supersampling for anti-aliasing
-  const out = new Uint8Array(size * size * 4);
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      let r = 0,
-        g = 0,
-        b = 0,
-        a = 0;
-      for (let sy = 0; sy < SS; sy++) {
-        for (let sx = 0; sx < SS; sx++) {
-          const u = (x + (sx + 0.5) / SS) / size;
-          const v = (y + (sy + 0.5) / SS) / size;
-          let px;
-          if (insideChevron(u, v, markScale)) {
-            px = [chevron[0], chevron[1], chevron[2], 255];
-          } else {
-            px = background(u, v) ?? [0, 0, 0, 0];
-          }
-          r += px[0] * (px[3] / 255);
-          g += px[1] * (px[3] / 255);
-          b += px[2] * (px[3] / 255);
-          a += px[3];
-        }
-      }
-      const n = SS * SS;
-      const ai = a / n;
-      const i = (y * size + x) * 4;
-      // Un-premultiply so edge pixels keep the right colour.
-      const cov = ai === 0 ? 0 : ai / 255;
-      out[i] = cov === 0 ? 0 : Math.round(r / n / cov);
-      out[i + 1] = cov === 0 ? 0 : Math.round(g / n / cov);
-      out[i + 2] = cov === 0 ? 0 : Math.round(b / n / cov);
-      out[i + 3] = Math.round(ai);
-    }
+  ctx.font = `${fontSize}px "${FONT_FAMILY}"`;
+  const tracking = -0.04 * fontSize;
+  const widths = letters.map((c) => ctx.measureText(c).width);
+  let totalAdvance = 0;
+  for (let i = 0; i < letters.length; i++) {
+    totalAdvance += widths[i];
+    if (i < letters.length - 1) totalAdvance += tracking;
   }
-  return out;
+
+  const km = ctx.measureText('K');
+  const capH = km.actualBoundingBoxAscent + km.actualBoundingBoxDescent;
+  const baseline = (size + capH) / 2 - km.actualBoundingBoxDescent;
+
+  ctx.fillStyle = color;
+  ctx.textBaseline = 'alphabetic';
+  let x = (size - totalAdvance) / 2;
+  for (let i = 0; i < letters.length; i++) {
+    ctx.fillText(letters[i], x, baseline);
+    x += widths[i] + tracking;
+  }
+  return canvas;
 }
 
-function verticalGradient(top, bottom) {
-  return (_u, v) => [...lerp(top, bottom, v), 255];
-}
-const solid = (rgb) => () => [...rgb, 255];
-const transparent = () => null;
-
-function write(name, size, rgba, hasAlpha) {
+function write(name, canvas) {
   const file = path.join(OUT, name);
-  fs.writeFileSync(file, encodePNG(size, size, rgba, hasAlpha));
-  console.log(`  ${name}  ${size}x${size}  ${hasAlpha ? 'RGBA' : 'RGB'}`);
+  fs.writeFileSync(file, canvas.toBuffer('image/png'));
+  console.log(`  ${name}  ${canvas.width}x${canvas.height}`);
 }
 
 // ---- Assets ---------------------------------------------------------------
 console.log('Generating Kova icon set →', OUT);
 
-// iOS / primary app icon: bold dark chevron on a green gradient. Opaque (no
-// alpha channel — App Store rejects icons with transparency).
-write(
-  'icon.png',
-  1024,
-  render(1024, { background: verticalGradient(GREEN_TOP, GREEN_BOTTOM), chevron: DARK }),
-  false
-);
+// iOS app icon: green wordmark on brand dark. App Store rejects transparency
+// in the primary icon, so we always paint the background.
+write('icon.png', drawWordmark({ size: 1024, bg: DARK, color: GREEN }));
 
-// Splash mark: green chevron, transparent (sits on the dark splash colour).
-write(
-  'splash-icon.png',
-  512,
-  render(512, { background: transparent, chevron: GREEN }),
-  true
-);
+// Splash mark: green wordmark on transparent (sits on the dark splash colour).
+write('splash-icon.png', drawWordmark({ size: 512, bg: null, color: GREEN }));
 
-// Android adaptive foreground: green chevron, pulled into the safe zone.
+// Android adaptive foreground: shrunk into the safe zone so the launcher's
+// circular/squircle mask doesn't clip the wordmark.
 write(
   'android-icon-foreground.png',
-  1024,
-  render(1024, { background: transparent, chevron: GREEN, markScale: 0.68 }),
-  true
+  drawWordmark({ size: 1024, bg: null, color: GREEN, widthFrac: 0.6, heightFrac: 0.3 })
 );
 
 // Android adaptive background: solid brand dark.
-write('android-icon-background.png', 1024, render(1024, { background: solid(DARK), chevron: DARK }), false);
+{
+  const canvas = createCanvas(1024, 1024);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = DARK;
+  ctx.fillRect(0, 0, 1024, 1024);
+  write('android-icon-background.png', canvas);
+}
 
 // Android monochrome (themed icons): white silhouette on transparent.
 write(
   'android-icon-monochrome.png',
-  1024,
-  render(1024, { background: transparent, chevron: [255, 255, 255], markScale: 0.68 }),
-  true
+  drawWordmark({ size: 1024, bg: null, color: '#FFFFFF', widthFrac: 0.6, heightFrac: 0.3 })
 );
 
 // Web favicon.
-write('favicon.png', 64, render(64, { background: solid(DARK), chevron: GREEN }), false);
+write('favicon.png', drawWordmark({ size: 64, bg: DARK, color: GREEN }));
 
 console.log('Done.');

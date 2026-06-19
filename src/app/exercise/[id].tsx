@@ -1,11 +1,13 @@
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { Lock } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { LineChart, type LinePoint } from '@/components/LineChart';
 import { supabase } from '@/lib/supabase';
 import { estimatedOneRepMax } from '@/lib/strength';
 import { useAuth } from '@/providers/AuthProvider';
+import { usePremium } from '@/providers/PremiumProvider';
 
 interface SetRow {
   weight: number;
@@ -27,6 +29,8 @@ interface ExerciseData {
   recordedMax: number;
   e1rmSeries: LinePoint[];
   prSeries: LinePoint[];
+  /** Indices into e1rmSeries where a new all-time best was set. */
+  prMarkers: number[];
   sessions: number;
 }
 
@@ -100,13 +104,17 @@ export default function ExerciseDetailScreen() {
       const sessions = [...bySession.values()].sort((a, b) => a.t - b.t);
       const e1rmSeries: LinePoint[] = sessions.map((s) => ({ t: s.t, y: s.e1rm }));
 
-      // PR progression: the all-time best estimated 1RM as of each session.
+      // PR progression + the indices where a *new* all-time best happened.
       const prSeries: LinePoint[] = [];
+      const prMarkers: number[] = [];
       let running = 0;
-      for (const s of sessions) {
-        running = Math.max(running, s.e1rm);
+      sessions.forEach((s, i) => {
+        if (s.e1rm > running) {
+          prMarkers.push(i);
+          running = s.e1rm;
+        }
         prSeries.push({ t: s.t, y: running });
-      }
+      });
 
       setData({
         name: exercise.name,
@@ -115,6 +123,7 @@ export default function ExerciseDetailScreen() {
         recordedMax,
         e1rmSeries,
         prSeries,
+        prMarkers,
         sessions: sessions.length,
       });
       setLoaded(true);
@@ -169,14 +178,45 @@ export default function ExerciseDetailScreen() {
         />
       </View>
 
-      <ChartCard title="Estimated 1RM" subtitle="best per session">
-        <LineChart data={data.e1rmSeries} color="#22C55E" formatLabel={lbsLabel} />
-      </ChartCard>
+      <E1rmChart series={data.e1rmSeries} markers={data.prMarkers} />
 
       <ChartCard title="PR Progression" subtitle="all-time best 1RM over time">
         <LineChart data={data.prSeries} color="#F59E0B" formatLabel={lbsLabel} />
       </ChartCard>
     </ScrollView>
+  );
+}
+
+/** Free users see the plain e1RM line. Premium users see each PR session
+ *  highlighted as a gold dot — purely additive, no existing feature removed. */
+function E1rmChart({ series, markers }: { series: LinePoint[]; markers: number[] }) {
+  const { isPremium } = usePremium();
+  const subtitle =
+    isPremium && markers.length > 0
+      ? `best per session · ${markers.length} PR${markers.length === 1 ? '' : 's'} highlighted`
+      : 'best per session';
+
+  return (
+    <ChartCard title="Estimated 1RM" subtitle={subtitle}>
+      <LineChart
+        data={series}
+        color="#22C55E"
+        markers={isPremium ? markers : undefined}
+        markerColor="#FBBF24"
+        formatLabel={lbsLabel}
+      />
+      {!isPremium && markers.length > 0 && (
+        <Pressable
+          className="mt-3 flex-row items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 active:opacity-70"
+          onPress={() => router.push('/premium')}
+        >
+          <Lock size={14} color="#22C55E" strokeWidth={2} />
+          <Text className="text-sm font-semibold text-primary">
+            Highlight {markers.length} PR session{markers.length === 1 ? '' : 's'} with Premium
+          </Text>
+        </Pressable>
+      )}
+    </ChartCard>
   );
 }
 

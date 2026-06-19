@@ -1,4 +1,4 @@
-import { Check, Crown, Download, Sparkles } from 'lucide-react-native';
+import { BarChart3, Check, Crown, Download, LineChart, Sparkles, Target } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,6 +11,21 @@ const PRIVACY_URL = 'https://rowanhall.github.io/workout-tracker/';
 const TERMS_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 
 const PERKS = [
+  {
+    icon: BarChart3,
+    title: 'Volume Heatmap',
+    body: 'A full year of training at a glance — every day colored by how hard you hit it.',
+  },
+  {
+    icon: Target,
+    title: 'Coach Insights',
+    body: 'Spot overdue muscles, stalled lifts, and hot streaks before they slow you down.',
+  },
+  {
+    icon: LineChart,
+    title: 'PR markers on every lift',
+    body: 'Every session where you set a new estimated 1RM highlighted on your strength chart.',
+  },
   {
     icon: Download,
     title: 'Export your data',

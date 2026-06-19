@@ -1,24 +1,24 @@
-import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
-import { Camera, ImagePlus, Layers, Share2, X } from 'lucide-react-native';
+import { Share2, X } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Dimensions,
   Modal,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Pressable,
+  ScrollView,
+  Share,
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
 
-import {
-  ShareableWorkoutCard,
-  type ShareBackground,
-  type ShareStats,
-} from '@/components/ShareableWorkoutCard';
+import { LinkSharePreview } from '@/components/LinkSharePreview';
+import { ShareableWorkoutCard, type ShareStats } from '@/components/ShareableWorkoutCard';
 
 interface Props {
   visible: boolean;
@@ -26,83 +26,73 @@ interface Props {
   onClose: () => void;
 }
 
-type BackgroundMode = 'transparent' | 'photo';
+// TODO: swap to the real share host once it's hosted (GitHub Pages stub or
+// proper landing page). The path mirrors what a /w/<id> deep-link handler
+// will eventually consume.
+const SHARE_URL_BASE = 'https://kova.app/w';
+
+type PageIndex = 0 | 1;
 
 /**
- * Turns a workout into a shareable image. "Transparent" exports a PNG with real
- * alpha — a sticker to layer over an Instagram Story like Strava. Adding a photo
- * bakes the stats in so the whole thing can be sent through the native share
- * sheet (Messages, WhatsApp, …).
+ * Strava-style swipeable share sheet. Page 1 sends a link that opens the
+ * workout in the app (anywhere — Messages, WhatsApp, …). Page 2 captures a
+ * translucent PNG sticker for Instagram Stories.
  */
 export function WorkoutShareSheet({ visible, stats, onClose }: Props) {
-  const cardRef = useRef<View>(null);
-  const [mode, setMode] = useState<BackgroundMode>('transparent');
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
-  // A chosen photo must finish decoding before capture, or it snapshots blank.
-  const [imageReady, setImageReady] = useState(true);
+  const stickerRef = useRef<View>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const [page, setPage] = useState<PageIndex>(0);
   const [busy, setBusy] = useState(false);
 
-  const background: ShareBackground =
-    mode === 'photo' && photoUri ? { type: 'photo', uri: photoUri } : { type: 'transparent' };
-
-  function reset() {
-    setMode('transparent');
-    setPhotoUri(null);
-    setImageReady(true);
-    setBusy(false);
-  }
+  const { width: screenWidth } = Dimensions.get('window');
+  const pageWidth = screenWidth;
+  // Sticker holds its 9:16 aspect; leave room for header/footer chrome.
+  const stickerWidth = Math.min(pageWidth - 96, 260);
 
   function handleClose() {
-    reset();
+    setBusy(false);
+    setPage(0);
+    scrollRef.current?.scrollTo({ x: 0, animated: false });
     onClose();
   }
 
-  function applyPhoto(uri: string) {
-    setImageReady(false);
-    setPhotoUri(uri);
-    setMode('photo');
+  function onScrollEnd(e: NativeSyntheticEvent<NativeScrollEvent>) {
+    const next = Math.round(e.nativeEvent.contentOffset.x / pageWidth) as PageIndex;
+    if (next !== page) setPage(next);
   }
 
-  async function pickFromLibrary() {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert('Photos access needed', 'Allow photo access to add a background.');
-      return;
+  function goToPage(p: PageIndex) {
+    scrollRef.current?.scrollTo({ x: p * pageWidth, animated: true });
+    setPage(p);
+  }
+
+  async function shareLink(url: string) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await Share.share(
+        {
+          message: `Check out my workout! ${url}`,
+          url,
+        },
+        { dialogTitle: 'Share workout' }
+      );
+    } catch (err: any) {
+      Alert.alert('Could not share', err?.message ?? 'Something went wrong.');
+    } finally {
+      setBusy(false);
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [9, 16],
-      quality: 0.85,
-    });
-    const uri = result.assets?.[0]?.uri;
-    if (!result.canceled && uri) applyPhoto(uri);
   }
 
-  async function takePhoto() {
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert('Camera access needed', 'Allow camera access to snap a background.');
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [9, 16],
-      quality: 0.85,
-    });
-    const uri = result.assets?.[0]?.uri;
-    if (!result.canceled && uri) applyPhoto(uri);
-  }
-
-  async function handleShare() {
-    if (!cardRef.current || busy) return;
+  async function shareSticker() {
+    if (!stickerRef.current || busy) return;
     setBusy(true);
     try {
       if (!(await Sharing.isAvailableAsync())) {
         Alert.alert('Sharing unavailable', 'Sharing is not supported on this device.');
         return;
       }
-      const uri = await captureRef(cardRef, {
+      const uri = await captureRef(stickerRef, {
         format: 'png',
         quality: 1,
         result: 'tmpfile',
@@ -112,7 +102,7 @@ export function WorkoutShareSheet({ visible, stats, onClose }: Props) {
       await Sharing.shareAsync(uri, {
         mimeType: 'image/png',
         UTI: 'public.png',
-        dialogTitle: 'Share your workout',
+        dialogTitle: 'Share to Instagram Story',
       });
     } catch (err: any) {
       Alert.alert('Could not share', err?.message ?? 'Something went wrong.');
@@ -123,102 +113,87 @@ export function WorkoutShareSheet({ visible, stats, onClose }: Props) {
 
   if (!stats) return null;
 
-  // Size the preview to fit the screen while holding the 9:16 export ratio.
-  const { width, height } = Dimensions.get('window');
-  const cardWidth = Math.min(width - 48, ((height - 360) * 9) / 16);
-
-  const shareDisabled = busy || (mode === 'photo' && !imageReady);
+  const shareUrl = `${SHARE_URL_BASE}/${stats.workoutId}`;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <SafeAreaView className="flex-1 bg-background">
-        <View className="flex-row items-center justify-between px-4 py-3">
-          <Text className="text-lg font-bold text-white">Share Workout</Text>
-          <Pressable onPress={handleClose} hitSlop={8} className="active:opacity-70">
-            <X size={24} color="#8B98A9" />
-          </Pressable>
-        </View>
-
-        <View className="flex-1 items-center justify-center px-6">
-          <View style={{ width: cardWidth }}>
-            <ShareableWorkoutCard
-              ref={cardRef}
-              stats={stats}
-              background={background}
-              onImageLoad={() => setImageReady(true)}
-            />
-          </View>
-          <Text className="mt-4 px-4 text-center text-xs text-muted">
-            {mode === 'transparent'
-              ? 'Transparent — add it over your Instagram Story so your photo shows through.'
-              : 'Your photo with stats baked in — perfect for Messages & WhatsApp.'}
-          </Text>
-        </View>
-
-        <View className="px-4 pb-2">
-          <View className="mb-3 flex-row gap-2">
-            <BackgroundOption
-              label="Transparent"
-              icon={<Layers size={18} color={mode === 'transparent' ? '#0B0F14' : '#FFFFFF'} />}
-              active={mode === 'transparent'}
-              onPress={() => setMode('transparent')}
-            />
-            <BackgroundOption
-              label="Photo"
-              icon={<ImagePlus size={18} color={mode === 'photo' ? '#0B0F14' : '#FFFFFF'} />}
-              active={mode === 'photo'}
-              onPress={pickFromLibrary}
-            />
-            <BackgroundOption
-              label="Camera"
-              icon={<Camera size={18} color="#FFFFFF" />}
-              active={false}
-              onPress={takePhoto}
-            />
+      <SafeAreaProvider>
+        <SafeAreaView className="flex-1 bg-background">
+          <View className="flex-row items-center justify-between px-4 py-3">
+            <Text className="text-lg font-bold text-white">Share Workout</Text>
+            <Pressable onPress={handleClose} hitSlop={8} className="active:opacity-70">
+              <X size={24} color="#8B98A9" />
+            </Pressable>
           </View>
 
-          <Pressable
-            className="flex-row items-center justify-center gap-2 rounded-xl bg-primary py-4 active:opacity-80 disabled:opacity-50"
-            disabled={shareDisabled}
-            onPress={handleShare}
+          <ScrollView
+            ref={scrollRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={onScrollEnd}
+            className="flex-1"
           >
-            {busy ? (
-              <ActivityIndicator color="#0B0F14" />
-            ) : (
-              <>
-                <Share2 size={20} color="#0B0F14" strokeWidth={2.25} />
-                <Text className="text-base font-bold text-background">Share</Text>
-              </>
-            )}
-          </Pressable>
-        </View>
-      </SafeAreaView>
+            <View
+              style={{ width: pageWidth }}
+              className="items-center justify-center px-6"
+            >
+              <LinkSharePreview stats={stats} url={shareUrl} />
+            </View>
+
+            <View
+              style={{ width: pageWidth }}
+              className="items-center justify-center px-6"
+            >
+              <View style={{ width: stickerWidth }}>
+                <ShareableWorkoutCard
+                  ref={stickerRef}
+                  stats={stats}
+                  background={{ type: 'transparent' }}
+                />
+              </View>
+            </View>
+          </ScrollView>
+
+          <View className="px-4 pb-2">
+            <View className="mb-3 flex-row justify-center gap-2">
+              <Dot active={page === 0} onPress={() => goToPage(0)} />
+              <Dot active={page === 1} onPress={() => goToPage(1)} />
+            </View>
+            <Text className="mb-3 text-center text-xs text-muted">
+              {page === 0
+                ? 'Send a link — opens your workout in Kova. Works in Messages, WhatsApp, anywhere.'
+                : 'Translucent sticker — drop it over your Instagram Story.'}
+            </Text>
+            <Pressable
+              className="flex-row items-center justify-center gap-2 rounded-xl bg-primary py-4 active:opacity-80 disabled:opacity-50"
+              disabled={busy}
+              onPress={page === 0 ? () => shareLink(shareUrl) : shareSticker}
+            >
+              {busy ? (
+                <ActivityIndicator color="#0B0F14" />
+              ) : (
+                <>
+                  <Share2 size={20} color="#0B0F14" strokeWidth={2.25} />
+                  <Text className="text-base font-bold text-background">
+                    {page === 0 ? 'Send link' : 'Share to Story'}
+                  </Text>
+                </>
+              )}
+            </Pressable>
+          </View>
+        </SafeAreaView>
+      </SafeAreaProvider>
     </Modal>
   );
 }
 
-function BackgroundOption({
-  label,
-  icon,
-  active,
-  onPress,
-}: {
-  label: string;
-  icon: React.ReactNode;
-  active: boolean;
-  onPress: () => void;
-}) {
+function Dot({ active, onPress }: { active: boolean; onPress: () => void }) {
   return (
-    <Pressable
-      onPress={onPress}
-      className={`flex-1 flex-row items-center justify-center gap-2 rounded-xl py-3 active:opacity-80 ${
-        active ? 'bg-primary' : 'border border-border bg-surface-2'
-      }`}
-    >
-      {icon}
-      <Text className={`text-sm font-semibold ${active ? 'text-background' : 'text-white'}`}>
-        {label}
-      </Text>
+    <Pressable onPress={onPress} hitSlop={10}>
+      <View
+        className={`h-2 rounded-full ${active ? 'w-6 bg-primary' : 'w-2 bg-surface-2'}`}
+      />
     </Pressable>
   );
 }

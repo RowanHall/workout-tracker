@@ -31,11 +31,17 @@ const PAD_RIGHT = 40;
 export function LineChart({
   data,
   color = '#22C55E',
+  markerColor = '#F59E0B',
+  markers,
   height = 150,
   formatLabel = (v) => String(Math.round(v)),
 }: {
   data: LinePoint[];
   color?: string;
+  /** Color for highlighted markers (e.g. PR points). */
+  markerColor?: string;
+  /** Indices into `data` that should render as a larger star-style highlight. */
+  markers?: number[];
   height?: number;
   formatLabel?: (v: number) => string;
 }) {
@@ -125,17 +131,34 @@ export function LineChart({
             strokeLinecap="round"
           />
 
-          {points.map((p, i) => (
-            <Circle
-              key={i}
-              cx={p.px}
-              cy={p.py}
-              r={i === points.length - 1 ? 4.5 : 3}
-              fill={i === points.length - 1 ? color : '#151B23'}
-              stroke={color}
-              strokeWidth={2}
-            />
-          ))}
+          {points.map((p, i) => {
+            const isMarker = markers?.includes(i);
+            const isLast = i === points.length - 1;
+            if (isMarker) {
+              return (
+                <Circle
+                  key={i}
+                  cx={p.px}
+                  cy={p.py}
+                  r={5.5}
+                  fill={markerColor}
+                  stroke="#151B23"
+                  strokeWidth={2}
+                />
+              );
+            }
+            return (
+              <Circle
+                key={i}
+                cx={p.px}
+                cy={p.py}
+                r={isLast ? 4.5 : 3}
+                fill={isLast ? color : '#151B23'}
+                stroke={color}
+                strokeWidth={2}
+              />
+            );
+          })}
         </Svg>
       )}
     </View>

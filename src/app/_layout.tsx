@@ -25,6 +25,7 @@ function RootNavigator() {
       <Stack
         screenOptions={{
           headerShown: false,
+          headerBackTitle: 'Back',
           contentStyle: { backgroundColor: '#0B0F14' },
         }}
       >

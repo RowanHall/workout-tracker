@@ -1,12 +1,14 @@
-import { Flame, Medal } from 'lucide-react-native';
 import { forwardRef } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { KovaLogo } from '@/components/KovaLogo';
+import { MuscleMap } from '@/components/MuscleMap';
+import type { ExerciseMuscle } from '@/lib/types';
 
 /** The stats rendered onto a shareable card. Optional fields are hidden when
  *  absent, so the card adapts to what each entry point can supply. */
 export interface ShareStats {
+  workoutId: string;
   title: string;
   dateIso: string;
   volume: number;
@@ -15,6 +17,7 @@ export interface ShareStats {
   prCount: number;
   streak: number | null;
   athleteName: string | null;
+  muscles: ExerciseMuscle[];
 }
 
 /** Either a fully transparent canvas (a Strava-style sticker to drop over an
@@ -73,72 +76,33 @@ export const ShareableWorkoutCard = forwardRef<View, Props>(
         <View className="flex-1 p-5">
           <View className="flex-row items-center justify-between">
             <KovaLogo size={26} style={textShadow} />
-            {stats.streak != null && stats.streak > 0 && (
-              <View
-                className="flex-row items-center gap-1.5 rounded-full px-3 py-1.5"
-                style={styles.chipDark}
-              >
-                <Flame size={14} color="#F59E0B" strokeWidth={2.5} />
-                <Text className="text-xs font-bold text-white">
-                  {stats.streak}-day streak
-                </Text>
-              </View>
-            )}
           </View>
 
-          <View className="flex-1" />
+          <View className="flex-1 items-center justify-center">
+            {stats.muscles.length > 0 && <MuscleMap muscles={stats.muscles} />}
+          </View>
 
           <View className="rounded-3xl p-5" style={styles.panel}>
-            <View className="flex-row items-start justify-between">
-              <View className="flex-1 pr-3">
-                <Text
-                  className="text-2xl font-extrabold text-white"
-                  style={textShadow}
-                  numberOfLines={2}
-                >
-                  {stats.title}
-                </Text>
-                <Text className="mt-0.5 text-sm font-medium text-white/70">
-                  {stats.athleteName ? `${stats.athleteName} · ` : ''}
-                  {formatDate(stats.dateIso)}
-                </Text>
-              </View>
-              {stats.prCount > 0 && (
-                <View
-                  className="flex-row items-center gap-1.5 rounded-full px-3 py-1.5"
-                  style={styles.chipAccent}
-                >
-                  <Medal size={14} color="#F59E0B" strokeWidth={2.25} />
-                  <Text className="text-xs font-bold text-accent">
-                    {stats.prCount} PR{stats.prCount > 1 ? 's' : ''}
-                  </Text>
-                </View>
-              )}
-            </View>
+            <Text
+              className="text-xl font-extrabold text-white"
+              style={textShadow}
+              numberOfLines={2}
+            >
+              {stats.title}
+            </Text>
+            <Text className="mt-0.5 text-xs font-medium text-white/70">
+              {stats.athleteName ? `${stats.athleteName} · ` : ''}
+              {formatDate(stats.dateIso)}
+            </Text>
 
-            <View className="mt-5">
-              <View className="flex-row items-baseline">
-                <Text
-                  className="text-5xl font-black text-white"
-                  style={textShadow}
-                >
-                  {Math.round(stats.volume).toLocaleString()}
-                </Text>
-                <Text className="ml-1.5 text-xl font-bold text-white/80">lbs</Text>
-              </View>
-              <Text className="mt-0.5 text-xs font-bold uppercase tracking-[2px] text-primary">
-                Total Volume
-              </Text>
-            </View>
-
-            <View className="mt-5 h-px" style={styles.divider} />
-
-            <View className="mt-4 flex-row justify-between">
-              <Metric label="Sets" value={String(stats.sets)} />
+            <View className="mt-4 flex-row items-end justify-between">
+              <Metric
+                label="Total Volume"
+                value={`${Math.round(stats.volume).toLocaleString()} lbs`}
+              />
               {stats.durationLabel && (
-                <Metric label="Time" value={stats.durationLabel} />
+                <Metric label="Time" value={stats.durationLabel} align="right" />
               )}
-              <Metric label="PRs" value={String(stats.prCount)} />
             </View>
           </View>
         </View>
@@ -149,13 +113,21 @@ export const ShareableWorkoutCard = forwardRef<View, Props>(
 
 ShareableWorkoutCard.displayName = 'ShareableWorkoutCard';
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({
+  label,
+  value,
+  align = 'left',
+}: {
+  label: string;
+  value: string;
+  align?: 'left' | 'right';
+}) {
   return (
-    <View>
-      <Text className="text-xl font-extrabold text-white" style={textShadow}>
+    <View className={align === 'right' ? 'items-end' : 'items-start'}>
+      <Text className="text-2xl font-black text-white" style={textShadow}>
         {value}
       </Text>
-      <Text className="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-white/60">
+      <Text className="mt-0.5 text-[10px] font-bold uppercase tracking-[2px] text-primary">
         {label}
       </Text>
     </View>
@@ -173,14 +145,5 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(11,15,20,0.55)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
-  },
-  chipDark: {
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  chipAccent: {
-    backgroundColor: 'rgba(245,158,11,0.2)',
-  },
-  divider: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
   },
 });

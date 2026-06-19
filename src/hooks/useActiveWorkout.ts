@@ -4,9 +4,52 @@ import { dateKey, workoutTitleForNow } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 import type { Exercise, Workout, WorkoutSet, WorkoutSummary } from '@/lib/types';
 
+export interface PreviousSet {
+  set_number: number;
+  weight: number;
+  reps: number;
+}
+
 export interface WorkoutEntry {
   exercise: Exercise;
   sets: WorkoutSet[];
+  /** Sets from the user's most recent finished workout that included this
+   *  exercise, used to suggest weight/reps for the current session. Empty
+   *  when there's no prior history. */
+  previousSets: PreviousSet[];
+}
+
+async function fetchPreviousSets(
+  userId: string,
+  exerciseId: number,
+  excludeWorkoutId: string
+): Promise<PreviousSet[]> {
+  const { data: latest } = await supabase
+    .from('workout_sets')
+    .select('workout_id, workouts!inner(ended_at, user_id)')
+    .eq('exercise_id', exerciseId)
+    .eq('workouts.user_id', userId)
+    .not('workouts.ended_at', 'is', null)
+    .neq('workout_id', excludeWorkoutId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const latestId = (latest as { workout_id?: string } | null)?.workout_id;
+  if (!latestId) return [];
+
+  const { data: sets } = await supabase
+    .from('workout_sets')
+    .select('set_number, weight, reps')
+    .eq('workout_id', latestId)
+    .eq('exercise_id', exerciseId)
+    .order('set_number', { ascending: true });
+
+  return ((sets as PreviousSet[] | null) ?? []).map((s) => ({
+    set_number: s.set_number,
+    weight: Number(s.weight),
+    reps: s.reps,
+  }));
 }
 
 /**
@@ -44,12 +87,20 @@ export function useActiveWorkout(userId: string | undefined) {
         for (const row of (sets as any[]) ?? []) {
           const { exercises: exercise, ...set } = row;
           if (!byExercise.has(exercise.id)) {
-            byExercise.set(exercise.id, { exercise, sets: [] });
+            byExercise.set(exercise.id, { exercise, sets: [], previousSets: [] });
           }
           byExercise.get(exercise.id)!.sets.push(set as WorkoutSet);
         }
+        const resumed = [...byExercise.values()];
+        const withPrev = await Promise.all(
+          resumed.map(async (e) => ({
+            ...e,
+            previousSets: await fetchPreviousSets(userId!, e.exercise.id, open.id),
+          }))
+        );
+        if (cancelled) return;
         setWorkout(open as Workout);
-        setEntries([...byExercise.values()]);
+        setEntries(withPrev);
       }
       if (!cancelled) setLoading(false);
     }
@@ -72,13 +123,27 @@ export function useActiveWorkout(userId: string | undefined) {
     setEntries([]);
   }, [userId]);
 
-  const addExercise = useCallback((exercise: Exercise) => {
-    setEntries((prev) =>
-      prev.some((e) => e.exercise.id === exercise.id)
-        ? prev
-        : [...prev, { exercise, sets: [] }]
-    );
-  }, []);
+  const addExercise = useCallback(
+    async (exercise: Exercise) => {
+      if (!userId || !workout) return;
+      let alreadyHas = false;
+      setEntries((prev) => {
+        alreadyHas = prev.some((e) => e.exercise.id === exercise.id);
+        return alreadyHas
+          ? prev
+          : [...prev, { exercise, sets: [], previousSets: [] }];
+      });
+      if (alreadyHas) return;
+      const previousSets = await fetchPreviousSets(userId, exercise.id, workout.id);
+      if (previousSets.length === 0) return;
+      setEntries((prev) =>
+        prev.map((e) =>
+          e.exercise.id === exercise.id ? { ...e, previousSets } : e
+        )
+      );
+    },
+    [userId, workout]
+  );
 
   const logSet = useCallback(
     async (exerciseId: number, weight: number, reps: number) => {

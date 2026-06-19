@@ -116,6 +116,7 @@ export default function WorkoutDetailScreen() {
   const combinedMuscles = mergeMuscles(exercises.map((e) => e.muscles));
   const prCount = workout.workout_sets.filter((s) => s.is_pr).length;
   const shareStats: ShareStats = {
+    workoutId: workout.id,
     title: workout.title,
     dateIso: workout.ended_at ?? workout.started_at,
     volume: workout.total_volume,
@@ -126,6 +127,7 @@ export default function WorkoutDetailScreen() {
     prCount,
     streak: null,
     athleteName: name,
+    muscles: combinedMuscles,
   };
 
   return (

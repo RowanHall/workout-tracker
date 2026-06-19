@@ -1,10 +1,12 @@
 import { router, useFocusEffect } from 'expo-router';
 import {
+  AlertTriangle,
   ChevronRight,
   Dumbbell,
   Flame,
   History,
   Layers,
+  Minus,
   Star,
   Timer,
   TrendingUp,
@@ -13,8 +15,11 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PremiumGate } from '@/components/PremiumGate';
+import { VolumeHeatmap } from '@/components/VolumeHeatmap';
 import { WeeklyVolumeChart, type WeekVolume } from '@/components/WeeklyVolumeChart';
-import { formatVolume } from '@/lib/format';
+import { dateKey, formatVolume } from '@/lib/format';
+import { computeInsights, type Insights } from '@/lib/insights';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -30,7 +35,9 @@ interface SessionRow {
 interface SetRow {
   weight: number;
   reps: number;
+  exercise_id: number;
   exercises: { name: string; muscle_group: string } | null;
+  workouts: { ended_at: string } | null;
 }
 
 interface Lifetime {
@@ -82,6 +89,8 @@ export default function StatsScreen() {
   const [topExercises, setTopExercises] = useState<RankedExercise[]>([]);
   const [muscleSplit, setMuscleSplit] = useState<MuscleShare[]>([]);
   const [bestLifts, setBestLifts] = useState<BestLift[]>([]);
+  const [dailyVolume, setDailyVolume] = useState<Map<string, number>>(new Map());
+  const [insights, setInsights] = useState<Insights | null>(null);
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -94,7 +103,7 @@ export default function StatsScreen() {
         .order('ended_at', { ascending: true }),
       supabase
         .from('workout_sets')
-        .select('weight, reps, exercises (name, muscle_group), workouts!inner (user_id, ended_at)')
+        .select('weight, reps, exercise_id, exercises (name, muscle_group), workouts!inner (user_id, ended_at)')
         .eq('workouts.user_id', userId)
         .not('workouts.ended_at', 'is', null),
       supabase
@@ -180,6 +189,28 @@ export default function StatsScreen() {
         .filter((pr) => pr.exercises)
         .map((pr) => ({ name: pr.exercises!.name, value: Number(pr.value) }))
     );
+
+    const daily = new Map<string, number>();
+    for (const w of workouts) {
+      const key = dateKey(new Date(w.ended_at));
+      daily.set(key, (daily.get(key) ?? 0) + Number(w.total_volume));
+    }
+    setDailyVolume(daily);
+
+    setInsights(
+      computeInsights(
+        sets
+          .filter((s) => s.exercises && s.workouts)
+          .map((s) => ({
+            weight: Number(s.weight),
+            reps: s.reps,
+            exerciseId: s.exercise_id,
+            exerciseName: s.exercises!.name,
+            muscleGroup: s.exercises!.muscle_group,
+            endedAt: new Date(s.workouts!.ended_at).getTime(),
+          }))
+      )
+    );
   }, [userId]);
 
   useFocusEffect(
@@ -244,6 +275,28 @@ export default function StatsScreen() {
         <SectionCard title={`Weekly Volume (${WEEKS_SHOWN} weeks)`}>
           <WeeklyVolumeChart data={weeklyVolume} />
         </SectionCard>
+
+        {lifetime && lifetime.workouts > 0 && (
+          <SectionCard title="Volume Heatmap" subtitle="last 12 months · Premium">
+            <PremiumGate
+              title="Volume Heatmap"
+              description="See every training day of the year colored by how hard you hit it."
+            >
+              <VolumeHeatmap dailyVolume={dailyVolume} />
+            </PremiumGate>
+          </SectionCard>
+        )}
+
+        {insights && hasInsights(insights) && (
+          <SectionCard title="Coach Insights" subtitle="Premium">
+            <PremiumGate
+              title="Smart Insights"
+              description="Spot overdue muscles, stalled lifts, and hot streaks before they bite you."
+            >
+              <InsightsList insights={insights} />
+            </PremiumGate>
+          </SectionCard>
+        )}
 
         {averages && (
           <SectionCard title="Per Session">
@@ -450,6 +503,98 @@ function RecordRow({
       <Text className="font-semibold text-white">{value}</Text>
     </View>
   );
+}
+
+function hasInsights(insights: Insights): boolean {
+  return (
+    insights.overdue.length > 0 ||
+    insights.plateaued.length > 0 ||
+    insights.hotStreaks.length > 0
+  );
+}
+
+const MUSCLE_LABELS: Record<string, string> = {
+  chest: 'Chest',
+  back: 'Back',
+  shoulders: 'Shoulders',
+  biceps: 'Biceps',
+  triceps: 'Triceps',
+  quads: 'Quads',
+  hamstrings: 'Hamstrings',
+  glutes: 'Glutes',
+  calves: 'Calves',
+  core: 'Core',
+  full_body: 'Full body',
+};
+
+function InsightsList({ insights }: { insights: Insights }) {
+  return (
+    <View className="gap-2">
+      {insights.overdue.slice(0, 3).map((item) => (
+        <InsightRow
+          key={`overdue-${item.muscleGroup}`}
+          icon={<AlertTriangle size={18} color="#F59E0B" strokeWidth={2} />}
+          title={`${MUSCLE_LABELS[item.muscleGroup] ?? item.muscleGroup.replace('_', ' ')} is overdue`}
+          subtitle={`${item.daysSince} days since last session · usually every ${item.avgInterval}`}
+        />
+      ))}
+      {insights.hotStreaks.map((item) => (
+        <InsightRow
+          key={`hot-${item.exerciseId}`}
+          icon={<TrendingUp size={18} color="#22C55E" strokeWidth={2} />}
+          title={item.exerciseName}
+          subtitle={`+${Math.round(item.delta)} lbs e1RM in the last 2 weeks → ${Math.round(item.currentE1rm)} lbs`}
+          onPress={() => router.push(`/exercise/${item.exerciseId}`)}
+        />
+      ))}
+      {insights.plateaued.map((item) => (
+        <InsightRow
+          key={`plateau-${item.exerciseId}`}
+          icon={<Minus size={18} color="#8B98A9" strokeWidth={2} />}
+          title={item.exerciseName}
+          subtitle={`Stalled at ${Math.round(item.currentE1rm)} lbs for ${item.weeksAgo}+ weeks — try a deload or rep change`}
+          onPress={() => router.push(`/exercise/${item.exerciseId}`)}
+        />
+      ))}
+    </View>
+  );
+}
+
+function InsightRow({
+  icon,
+  title,
+  subtitle,
+  onPress,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  onPress?: () => void;
+}) {
+  const content = (
+    <View className="flex-row items-center gap-3 rounded-xl bg-surface-2 px-3 py-2.5">
+      <View className="h-8 w-8 items-center justify-center rounded-lg bg-surface">
+        {icon}
+      </View>
+      <View className="flex-1">
+        <Text className="font-semibold text-white" numberOfLines={1}>
+          {title}
+        </Text>
+        <Text className="mt-0.5 text-xs text-muted" numberOfLines={2}>
+          {subtitle}
+        </Text>
+      </View>
+      {onPress && <ChevronRight size={16} color="#8B98A9" strokeWidth={2} />}
+    </View>
+  );
+  if (onPress) {
+    return (
+      <Pressable onPress={onPress} className="active:opacity-70">
+        {content}
+      </Pressable>
+    );
+  }
+  return content;
 }
 
 function BarRow({
