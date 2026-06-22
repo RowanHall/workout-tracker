@@ -1,13 +1,11 @@
-import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { Lock } from 'lucide-react-native';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 
 import { LineChart, type LinePoint } from '@/components/LineChart';
 import { supabase } from '@/lib/supabase';
 import { estimatedOneRepMax } from '@/lib/strength';
 import { useAuth } from '@/providers/AuthProvider';
-import { usePremium } from '@/providers/PremiumProvider';
 
 interface SetRow {
   weight: number;
@@ -187,12 +185,9 @@ export default function ExerciseDetailScreen() {
   );
 }
 
-/** Free users see the plain e1RM line. Premium users see each PR session
- *  highlighted as a gold dot — purely additive, no existing feature removed. */
 function E1rmChart({ series, markers }: { series: LinePoint[]; markers: number[] }) {
-  const { isPremium } = usePremium();
   const subtitle =
-    isPremium && markers.length > 0
+    markers.length > 0
       ? `best per session · ${markers.length} PR${markers.length === 1 ? '' : 's'} highlighted`
       : 'best per session';
 
@@ -201,21 +196,10 @@ function E1rmChart({ series, markers }: { series: LinePoint[]; markers: number[]
       <LineChart
         data={series}
         color="#22C55E"
-        markers={isPremium ? markers : undefined}
+        markers={markers}
         markerColor="#FBBF24"
         formatLabel={lbsLabel}
       />
-      {!isPremium && markers.length > 0 && (
-        <Pressable
-          className="mt-3 flex-row items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 active:opacity-70"
-          onPress={() => router.push('/premium')}
-        >
-          <Lock size={14} color="#22C55E" strokeWidth={2} />
-          <Text className="text-sm font-semibold text-primary">
-            Highlight {markers.length} PR session{markers.length === 1 ? '' : 's'} with Premium
-          </Text>
-        </Pressable>
-      )}
     </ChartCard>
   );
 }

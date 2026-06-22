@@ -9,6 +9,10 @@ interface MuscleMapProps {
   /** Optional cap on scale. Defaults to 1 so we never upscale past the SVG's native size. */
   maxScale?: number;
   gender?: 'male' | 'female';
+  /** Which body view to render. 'both' shows front and back side-by-side (the
+   *  default), while 'front' or 'back' show a single, compact view — useful
+   *  for inline thumbnails. */
+  side?: 'front' | 'back' | 'both';
 }
 
 // Two-stop ramp: secondary (intensity 1) → dim primary, primary (2) → bright.
@@ -19,7 +23,12 @@ const GAP = 8;
 // Each body's native SVG width (see SvgMaleWrapper / SvgFemaleWrapper).
 const NATIVE_BODY_WIDTH = 200;
 
-export function MuscleMap({ muscles, maxScale = 1, gender = 'male' }: MuscleMapProps) {
+export function MuscleMap({
+  muscles,
+  maxScale = 1,
+  gender = 'male',
+  side = 'both',
+}: MuscleMapProps) {
   const [width, setWidth] = useState(0);
 
   const data = useMemo<ExtendedBodyPart[]>(
@@ -27,8 +36,14 @@ export function MuscleMap({ muscles, maxScale = 1, gender = 'male' }: MuscleMapP
     [muscles]
   );
 
-  // Pick the largest scale that fits two bodies plus the gap into the container.
-  const scale = Math.min(maxScale, Math.max(0, (width - GAP) / (NATIVE_BODY_WIDTH * 2)));
+  // Pick the largest scale that fits the bodies (with a gap between them, if
+  // both sides are shown) into the container.
+  const bodies = side === 'both' ? 2 : 1;
+  const totalGap = bodies > 1 ? GAP : 0;
+  const scale = Math.min(
+    maxScale,
+    Math.max(0, (width - totalGap) / (NATIVE_BODY_WIDTH * bodies))
+  );
 
   function onLayout(e: LayoutChangeEvent) {
     const w = e.nativeEvent.layout.width;
@@ -41,27 +56,27 @@ export function MuscleMap({ muscles, maxScale = 1, gender = 'male' }: MuscleMapP
       style={{ gap: GAP }}
       onLayout={onLayout}
     >
-      {scale > 0 && (
-        <>
-          <Body
-            data={data}
-            side="front"
-            gender={gender}
-            scale={scale}
-            colors={COLORS}
-            border={BORDER}
-            defaultFill={DEFAULT_FILL}
-          />
-          <Body
-            data={data}
-            side="back"
-            gender={gender}
-            scale={scale}
-            colors={COLORS}
-            border={BORDER}
-            defaultFill={DEFAULT_FILL}
-          />
-        </>
+      {scale > 0 && (side === 'both' || side === 'front') && (
+        <Body
+          data={data}
+          side="front"
+          gender={gender}
+          scale={scale}
+          colors={COLORS}
+          border={BORDER}
+          defaultFill={DEFAULT_FILL}
+        />
+      )}
+      {scale > 0 && (side === 'both' || side === 'back') && (
+        <Body
+          data={data}
+          side="back"
+          gender={gender}
+          scale={scale}
+          colors={COLORS}
+          border={BORDER}
+          defaultFill={DEFAULT_FILL}
+        />
       )}
     </View>
   );

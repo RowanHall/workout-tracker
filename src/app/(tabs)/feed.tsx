@@ -74,7 +74,7 @@ export default function FeedScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView className="flex-1 bg-background" edges={['top', 'left', 'right']}>
       <View className="flex-row items-center justify-between px-4 py-3">
         <KovaLogo size={24} />
         <Pressable

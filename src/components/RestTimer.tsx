@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, Vibration, View } from 'react-native';
 
 interface RestTimerProps {
@@ -9,9 +9,13 @@ interface RestTimerProps {
 
 export function RestTimer({ trigger, defaultSeconds = 90 }: RestTimerProps) {
   const [remaining, setRemaining] = useState(0);
+  // Whatever value `trigger` has at mount is "the past" — the user hasn't
+  // logged a set in this session yet, so don't start the timer. Only kick it
+  // off when the parent actually bumps the trigger after mount.
+  const mountTrigger = useRef(trigger);
 
   useEffect(() => {
-    if (trigger > 0) setRemaining(defaultSeconds);
+    if (trigger !== mountTrigger.current) setRemaining(defaultSeconds);
   }, [trigger, defaultSeconds]);
 
   useEffect(() => {

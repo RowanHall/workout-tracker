@@ -19,8 +19,10 @@ export interface LinePoint {
 
 const PAD_TOP = 14;
 const PAD_BOTTOM = 18;
+const PAD_BOTTOM_WITH_LABELS = 30;
 const PAD_LEFT = 8;
 const PAD_RIGHT = 40;
+const X_LABEL_MIN_SPACING = 56;
 
 /**
  * Generic single-series line chart over an SVG. The x-axis is scaled by the
@@ -35,6 +37,7 @@ export function LineChart({
   markers,
   height = 150,
   formatLabel = (v) => String(Math.round(v)),
+  formatXLabel,
 }: {
   data: LinePoint[];
   color?: string;
@@ -44,6 +47,8 @@ export function LineChart({
   markers?: number[];
   height?: number;
   formatLabel?: (v: number) => string;
+  /** When provided, renders date labels at the bottom for a subset of points. */
+  formatXLabel?: (t: number) => string;
 }) {
   const [width, setWidth] = useState(0);
   // Unique per instance so multiple charts on one screen don't share a <Defs> id.
@@ -67,7 +72,8 @@ export function LineChart({
   const hi = maxY + yPad;
 
   const plotW = Math.max(0, width - PAD_LEFT - PAD_RIGHT);
-  const plotBottom = height - PAD_BOTTOM;
+  const padBottom = formatXLabel ? PAD_BOTTOM_WITH_LABELS : PAD_BOTTOM;
+  const plotBottom = height - padBottom;
   const single = data.length === 1;
 
   // A single entry sits at the right edge; multiple points spread by date.
@@ -77,6 +83,23 @@ export function LineChart({
 
   // The real data points (the dots we draw).
   const points = data.map((d) => ({ px: x(d.t), py: y(d.y) }));
+
+  // Pick which data indices get an x-axis date label. Always anchor the first
+  // and last point; pack as many evenly-spaced labels in between as will fit
+  // without overlapping at the configured minimum spacing.
+  const xLabelIndices: number[] = [];
+  if (formatXLabel && data.length > 0) {
+    if (single) {
+      xLabelIndices.push(0);
+    } else {
+      const maxLabels = Math.max(2, Math.floor(plotW / X_LABEL_MIN_SPACING) + 1);
+      const tickCount = Math.min(maxLabels, data.length);
+      for (let i = 0; i < tickCount; i++) {
+        const idx = Math.round((i / (tickCount - 1)) * (data.length - 1));
+        if (!xLabelIndices.includes(idx)) xLabelIndices.push(idx);
+      }
+    }
+  }
   // With only one entry, assume the value held steady and draw a flat line
   // across the whole width up to it, rather than a lone dot.
   const linePoints = single
@@ -159,6 +182,25 @@ export function LineChart({
               />
             );
           })}
+
+          {formatXLabel &&
+            xLabelIndices.map((idx) => {
+              const p = points[idx];
+              const anchor =
+                idx === 0 ? 'start' : idx === data.length - 1 ? 'end' : 'middle';
+              return (
+                <SvgText
+                  key={`x-${idx}`}
+                  x={p.px}
+                  y={height - 6}
+                  fill="#8B98A9"
+                  fontSize={10}
+                  textAnchor={anchor}
+                >
+                  {formatXLabel(data[idx].t)}
+                </SvgText>
+              );
+            })}
         </Svg>
       )}
     </View>

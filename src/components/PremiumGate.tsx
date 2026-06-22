@@ -25,10 +25,10 @@ export function PremiumGate({
 
   return (
     <Pressable
-      className="active:opacity-90"
+      className="w-full active:opacity-90"
       onPress={() => router.push('/premium')}
     >
-      <View className="relative overflow-hidden">
+      <View className="relative">
         <View className="opacity-30" pointerEvents="none">
           {children}
         </View>

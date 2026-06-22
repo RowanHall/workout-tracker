@@ -20,5 +20,16 @@ export function WeightChart({ data }: { data: WeightPoint[] }) {
   }
 
   const points = data.map((d) => ({ t: new Date(d.recorded_on).getTime(), y: d.weight }));
-  return <LineChart data={points} color="#22C55E" formatLabel={formatWeight} />;
+  return (
+    <LineChart
+      data={points}
+      color="#22C55E"
+      formatLabel={formatWeight}
+      formatXLabel={formatDateLabel}
+    />
+  );
+}
+
+function formatDateLabel(t: number): string {
+  return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }

@@ -111,6 +111,32 @@ export interface FeedWorkout extends Workout {
   feed_interactions: FeedInteraction[];
 }
 
+export interface RoutineSet {
+  id: string;
+  routine_exercise_id: string;
+  set_number: number;
+  weight: number;
+  reps: number;
+}
+
+export interface RoutineExercise {
+  id: string;
+  routine_id: string;
+  exercise_id: number;
+  position: number;
+  exercise?: Exercise;
+  sets?: RoutineSet[];
+}
+
+export interface Routine {
+  id: string;
+  user_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  routine_exercises?: RoutineExercise[];
+}
+
 /** Payload of the finish_workout RPC. The function also returns paused
  *  gamification fields (exp_earned, leveled_up, new_tiers, …) which the app
  *  currently ignores. */

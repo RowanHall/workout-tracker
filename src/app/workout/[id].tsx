@@ -3,10 +3,11 @@ import { Medal, Share2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
-import type { ShareStats } from '@/components/ShareableWorkoutCard';
-import { WorkoutShareSheet } from '@/components/WorkoutShareSheet';
 import { Avatar } from '@/components/Avatar';
 import { MuscleMap } from '@/components/MuscleMap';
+import type { ShareStats } from '@/components/ShareableWorkoutCard';
+import { WorkoutPhotosCarousel } from '@/components/WorkoutPhotosCarousel';
+import { WorkoutShareSheet } from '@/components/WorkoutShareSheet';
 import { formatDuration, formatVolume, timeAgo } from '@/lib/format';
 import { mergeMuscles } from '@/lib/muscles';
 import { supabase } from '@/lib/supabase';
@@ -24,6 +25,7 @@ interface WorkoutDetail extends Workout {
     avatar_url: string | null;
   };
   workout_sets: DetailSet[];
+  workout_photos: { photo_url: string; position: number }[];
 }
 
 interface ExerciseGroup {
@@ -82,7 +84,8 @@ export default function WorkoutDetailScreen() {
       .select(
         `*,
          profiles (username, display_name, avatar_url),
-         workout_sets (*, exercises (name, muscle_group, muscles))`
+         workout_sets (*, exercises (name, muscle_group, muscles)),
+         workout_photos (photo_url, position)`
       )
       .eq('id', id)
       .maybeSingle()
@@ -115,15 +118,20 @@ export default function WorkoutDetailScreen() {
   const exercises = groupByExercise(workout.workout_sets);
   const combinedMuscles = mergeMuscles(exercises.map((e) => e.muscles));
   const prCount = workout.workout_sets.filter((s) => s.is_pr).length;
+  const durationLabel = workout.ended_at
+    ? formatDuration(workout.started_at, workout.ended_at)
+    : null;
+  const photoUrls = [...(workout.workout_photos ?? [])]
+    .sort((a, b) => a.position - b.position)
+    .map((p) => p.photo_url);
+
   const shareStats: ShareStats = {
     workoutId: workout.id,
     title: workout.title,
     dateIso: workout.ended_at ?? workout.started_at,
     volume: workout.total_volume,
     sets: workout.total_sets,
-    durationLabel: workout.ended_at
-      ? formatDuration(workout.started_at, workout.ended_at)
-      : null,
+    durationLabel,
     prCount,
     streak: null,
     athleteName: name,
@@ -132,103 +140,236 @@ export default function WorkoutDetailScreen() {
 
   return (
     <>
-    <ScrollView className="flex-1 bg-background" contentContainerClassName="p-4 pb-8">
-      <View className="mb-4 rounded-2xl bg-surface p-4">
-        <Pressable
-          className="mb-3 flex-row items-center active:opacity-70"
-          onPress={() => router.push(`/user/${workout.user_id}`)}
-        >
-          <View className="mr-3">
-            <Avatar url={workout.profiles.avatar_url} name={name} size={40} />
-          </View>
-          <View className="flex-1">
-            <Text className="font-semibold text-white">{name}</Text>
-            <Text className="text-xs text-muted">
-              @{workout.profiles.username} · {timeAgo(workout.ended_at ?? workout.started_at)}
-            </Text>
-          </View>
-        </Pressable>
+      <ScrollView
+        className="flex-1 bg-background"
+        contentContainerStyle={{ paddingBottom: 48 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <IdentityRow
+          name={name}
+          username={workout.profiles.username}
+          avatarUrl={workout.profiles.avatar_url}
+          dateIso={workout.ended_at ?? workout.started_at}
+          onAvatarPress={() => router.push(`/user/${workout.user_id}`)}
+          onSharePress={() => setShareOpen(true)}
+        />
 
-        <Text className="mb-3 text-xl font-bold text-white">{workout.title}</Text>
-        <View className="flex-row items-end justify-between">
-          <View className="flex-row gap-4">
-            <Stat label="Volume" value={formatVolume(workout.total_volume)} />
-            <Stat label="Sets" value={String(workout.total_sets)} />
-            {workout.ended_at && (
-              <Stat label="Time" value={formatDuration(workout.started_at, workout.ended_at)} />
-            )}
-          </View>
-          <Pressable
-            className="flex-row items-center gap-1.5 rounded-full bg-surface-2 px-3 py-2 active:opacity-70"
-            onPress={() => setShareOpen(true)}
-            hitSlop={6}
+        <View className="px-5 pt-6">
+          <Text
+            className="text-[28px] font-bold text-white"
+            style={{ letterSpacing: -0.5 }}
           >
-            <Share2 size={16} color="#22C55E" strokeWidth={2.25} />
-            <Text className="text-xs font-semibold text-primary">Share</Text>
-          </Pressable>
+            {workout.title}
+          </Text>
+        </View>
+
+        {photoUrls.length > 0 && (
+          <View className="mt-5 px-4">
+            <WorkoutPhotosCarousel urls={photoUrls} />
+          </View>
+        )}
+
+        <View className="mt-2 mx-5 border-y border-white/5">
+          <View className="flex-row py-5">
+            <PillStat label="Volume" value={formatVolume(workout.total_volume)} />
+            <VBar />
+            <PillStat label="Sets" value={String(workout.total_sets)} />
+            {durationLabel && (
+              <>
+                <VBar />
+                <PillStat label="Time" value={durationLabel} />
+              </>
+            )}
+            <VBar />
+            <PillStat label="PRs" value={String(prCount)} highlight={prCount > 0} />
+          </View>
         </View>
 
         {combinedMuscles.length > 0 && (
-          <View className="mt-4 rounded-2xl bg-surface-2 p-4">
-            <Text className="mb-3 text-center text-xs font-semibold uppercase tracking-widest text-muted">
-              Muscles Worked
-            </Text>
-            <MuscleMap muscles={combinedMuscles} />
-          </View>
+          <Section label="Muscles Worked">
+            <View className="items-center rounded-2xl bg-surface py-5">
+              <MuscleMap muscles={combinedMuscles} />
+            </View>
+          </Section>
         )}
-      </View>
 
-      {exercises.map((exercise) => (
-        <View key={exercise.name} className="mb-3 rounded-2xl bg-surface p-4">
-          <View className="mb-3 flex-row items-center justify-between">
-            <Text className="flex-1 text-base font-bold text-white">{exercise.name}</Text>
-            <View className="rounded-full bg-surface-2 px-2.5 py-1">
-              <Text className="text-xs font-semibold text-muted">
-                {MUSCLE_LABELS[exercise.muscleGroup]}
-              </Text>
-            </View>
-          </View>
-
-          {exercise.sets.map((set) => (
-            <View
-              key={set.id}
-              className="flex-row items-center border-t border-border py-2.5"
-            >
-              <Text className="w-14 text-sm text-muted">Set {set.set_number}</Text>
-              <Text className="flex-1 text-sm font-semibold text-white">
-                {Number(set.weight).toLocaleString()} lbs × {set.reps}
-              </Text>
-              {set.is_pr && (
-                <View className="flex-row items-center gap-1 rounded-full bg-accent/20 px-2.5 py-1">
-                  <Medal size={12} color="#F59E0B" strokeWidth={2} />
-                  <Text className="text-xs font-bold text-accent">PR</Text>
-                </View>
-              )}
-            </View>
-          ))}
-        </View>
-      ))}
-
-      {exercises.length === 0 && (
-        <Text className="mt-8 text-center text-muted">No sets were logged.</Text>
-      )}
-    </ScrollView>
-    <WorkoutShareSheet
-      visible={shareOpen}
-      stats={shareStats}
-      onClose={() => setShareOpen(false)}
-    />
+        <Section label="Exercises" eyebrowSuffix={`${exercises.length} total`}>
+          {exercises.length === 0 ? (
+            <Text className="text-muted">No sets were logged.</Text>
+          ) : (
+            exercises.map((exercise, i) => (
+              <ExerciseBlock key={exercise.name} exercise={exercise} divider={i > 0} />
+            ))
+          )}
+        </Section>
+      </ScrollView>
+      <WorkoutShareSheet
+        visible={shareOpen}
+        stats={shareStats}
+        onClose={() => setShareOpen(false)}
+      />
     </>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function IdentityRow({
+  name,
+  username,
+  avatarUrl,
+  dateIso,
+  onAvatarPress,
+  onSharePress,
+}: {
+  name: string;
+  username: string;
+  avatarUrl?: string | null;
+  dateIso: string;
+  onAvatarPress: () => void;
+  onSharePress: () => void;
+}) {
   return (
-    <View>
-      <Text className="text-[10px] font-semibold uppercase tracking-wider text-muted">
+    <View className="flex-row items-center justify-between px-5 pt-3">
+      <Pressable
+        onPress={onAvatarPress}
+        className="flex-1 flex-row items-center gap-3 active:opacity-70"
+        hitSlop={4}
+      >
+        <Avatar url={avatarUrl} name={name} size={40} />
+        <View className="flex-1">
+          <Text className="text-[15px] font-semibold text-white" numberOfLines={1}>
+            {name}
+          </Text>
+          <Text className="text-xs text-muted" numberOfLines={1}>
+            @{username} · {timeAgo(dateIso)}
+          </Text>
+        </View>
+      </Pressable>
+
+      <Pressable
+        onPress={onSharePress}
+        className="ml-3 flex-row items-center gap-1.5 rounded-full bg-surface-2 px-3.5 py-2 active:opacity-70"
+        hitSlop={6}
+      >
+        <Share2 size={14} color="#22C55E" strokeWidth={2.5} />
+        <Text className="text-xs font-bold text-primary">Share</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function Section({
+  label,
+  eyebrowSuffix,
+  children,
+}: {
+  label: string;
+  eyebrowSuffix?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <View className="px-5 pt-8">
+      <View className="mb-3 flex-row items-baseline justify-between">
+        <Text className="text-[11px] font-bold uppercase tracking-[2.5px] text-muted">
+          {label}
+        </Text>
+        {eyebrowSuffix && (
+          <Text className="text-[11px] font-medium uppercase tracking-[1.5px] text-muted/70">
+            {eyebrowSuffix}
+          </Text>
+        )}
+      </View>
+      {children}
+    </View>
+  );
+}
+
+function PillStat({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
+  return (
+    <View className="flex-1 items-center px-1">
+      <Text
+        className={`text-[22px] font-extrabold ${highlight ? 'text-accent' : 'text-white'}`}
+        style={{ letterSpacing: -0.5, fontVariant: ['tabular-nums'] }}
+        numberOfLines={1}
+      >
+        {value}
+      </Text>
+      <Text className="mt-0.5 text-[10px] font-semibold uppercase tracking-[2px] text-muted">
         {label}
       </Text>
-      <Text className="text-base font-extrabold text-white">{value}</Text>
+    </View>
+  );
+}
+
+function VBar() {
+  return <View className="w-px bg-white/5" />;
+}
+
+function ExerciseBlock({
+  exercise,
+  divider,
+}: {
+  exercise: ExerciseGroup;
+  divider: boolean;
+}) {
+  return (
+    <View
+      className={
+        divider
+          ? 'mt-6 border-t border-white/5 pt-6'
+          : 'mt-1'
+      }
+    >
+      <View className="mb-3 flex-row items-baseline justify-between gap-3">
+        <Text
+          className="flex-1 text-lg font-bold text-white"
+          style={{ letterSpacing: -0.3 }}
+          numberOfLines={1}
+        >
+          {exercise.name}
+        </Text>
+        <Text className="text-[11px] font-medium uppercase tracking-[1.5px] text-muted/70">
+          {MUSCLE_LABELS[exercise.muscleGroup]}
+        </Text>
+      </View>
+
+      {exercise.sets.map((set) => (
+        <SetLine key={set.id} set={set} />
+      ))}
+    </View>
+  );
+}
+
+function SetLine({ set }: { set: DetailSet }) {
+  return (
+    <View className="flex-row items-center border-b border-white/5 py-2.5">
+      <Text
+        className="w-10 text-sm text-muted"
+        style={{ fontVariant: ['tabular-nums'] }}
+      >
+        #{set.set_number}
+      </Text>
+      <Text
+        className="flex-1 text-[15px] font-semibold text-white"
+        style={{ fontVariant: ['tabular-nums'] }}
+      >
+        {Number(set.weight).toLocaleString()} lbs × {set.reps}
+      </Text>
+      {set.is_pr && (
+        <View className="flex-row items-center gap-1 rounded-full bg-accent/15 px-2 py-0.5">
+          <Medal size={11} color="#F59E0B" strokeWidth={2.25} />
+          <Text className="text-[10px] font-bold uppercase tracking-wider text-accent">
+            PR
+          </Text>
+        </View>
+      )}
     </View>
   );
 }

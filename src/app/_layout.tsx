@@ -51,6 +51,13 @@ function RootNavigator() {
           }}
         />
         <Stack.Screen
+          name="routine/[id]"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
           name="settings"
           options={{
             headerShown: true,
@@ -73,6 +80,33 @@ function RootNavigator() {
           options={{
             headerShown: true,
             title: 'Exercises',
+            headerStyle: { backgroundColor: '#151B23' },
+            headerTintColor: '#FFFFFF',
+          }}
+        />
+        <Stack.Screen
+          name="stats"
+          options={{
+            headerShown: true,
+            title: 'Stats',
+            headerStyle: { backgroundColor: '#151B23' },
+            headerTintColor: '#FFFFFF',
+          }}
+        />
+        <Stack.Screen
+          name="muscle-map"
+          options={{
+            headerShown: true,
+            title: 'Muscle Map',
+            headerStyle: { backgroundColor: '#151B23' },
+            headerTintColor: '#FFFFFF',
+          }}
+        />
+        <Stack.Screen
+          name="muscle-distribution"
+          options={{
+            headerShown: true,
+            title: 'Muscle Distribution',
             headerStyle: { backgroundColor: '#151B23' },
             headerTintColor: '#FFFFFF',
           }}

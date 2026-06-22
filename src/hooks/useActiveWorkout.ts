@@ -4,6 +4,7 @@ import { dateKey, workoutTitleForNow } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 import type { Exercise, Workout, WorkoutSet, WorkoutSummary } from '@/lib/types';
 
+
 export interface PreviousSet {
   set_number: number;
   weight: number;
@@ -123,6 +124,55 @@ export function useActiveWorkout(userId: string | undefined) {
     setEntries([]);
   }, [userId]);
 
+  // Starts a workout from a saved routine. The routine's planned sets are
+  // loaded into each entry's `previousSets`, so the existing draft-set
+  // placeholder pattern shows them as faded green hints (135 / 8) on the
+  // empty set rows. No sets are pre-committed.
+  const startFromRoutine = useCallback(
+    async (routineId: string) => {
+      if (!userId) return;
+      const { data: routine, error: rErr } = await supabase
+        .from('routines')
+        .select(
+          'id, title, routine_exercises ( id, position, exercises (*), routine_sets ( set_number, weight, reps ) )'
+        )
+        .eq('id', routineId)
+        .single();
+      if (rErr) throw rErr;
+
+      const { data: newWorkout, error: wErr } = await supabase
+        .from('workouts')
+        .insert({ user_id: userId, title: routine.title })
+        .select()
+        .single();
+      if (wErr) throw wErr;
+
+      const routineExercises = ((routine as any).routine_exercises ?? []) as {
+        id: string;
+        position: number;
+        exercises: Exercise;
+        routine_sets: { set_number: number; weight: number; reps: number }[];
+      }[];
+      const ordered = [...routineExercises].sort((a, b) => a.position - b.position);
+      const newEntries: WorkoutEntry[] = ordered.map((re) => ({
+        exercise: re.exercises,
+        sets: [],
+        previousSets: (re.routine_sets ?? [])
+          .slice()
+          .sort((a, b) => a.set_number - b.set_number)
+          .map((s) => ({
+            set_number: s.set_number,
+            weight: Number(s.weight),
+            reps: s.reps,
+          })),
+      }));
+
+      setWorkout(newWorkout as Workout);
+      setEntries(newEntries);
+    },
+    [userId]
+  );
+
   const addExercise = useCallback(
     async (exercise: Exercise) => {
       if (!userId || !workout) return;
@@ -184,6 +234,21 @@ export function useActiveWorkout(userId: string | undefined) {
     );
   }, []);
 
+  const updateSet = useCallback(
+    async (exerciseId: number, setId: string, patch: { weight?: number; reps?: number }) => {
+      const { error } = await supabase.from('workout_sets').update(patch).eq('id', setId);
+      if (error) throw error;
+      setEntries((prev) =>
+        prev.map((e) =>
+          e.exercise.id === exerciseId
+            ? { ...e, sets: e.sets.map((s) => (s.id === setId ? { ...s, ...patch } : s)) }
+            : e
+        )
+      );
+    },
+    []
+  );
+
   const finish = useCallback(async (): Promise<WorkoutSummary | null> => {
     if (!workout) return null;
     const { data, error } = await supabase.rpc('finish_workout', {
@@ -203,5 +268,17 @@ export function useActiveWorkout(userId: string | undefined) {
     setEntries([]);
   }, [workout]);
 
-  return { workout, entries, loading, start, addExercise, logSet, deleteSet, finish, discard };
+  return {
+    workout,
+    entries,
+    loading,
+    start,
+    startFromRoutine,
+    addExercise,
+    logSet,
+    updateSet,
+    deleteSet,
+    finish,
+    discard,
+  };
 }
