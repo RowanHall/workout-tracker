@@ -9,15 +9,20 @@ import { NotificationsManager } from '@/providers/NotificationsManager';
 import { PremiumProvider } from '@/providers/PremiumProvider';
 
 function RootNavigator() {
-  const { session, loading } = useAuth();
+  const { session, profile, loading } = useAuth();
 
-  if (loading) {
+  // While the session is set but the profile row hasn't come back yet, hold
+  // on the spinner so we don't flash the tab bar before deciding whether to
+  // route a brand-new user into onboarding.
+  if (loading || (session && !profile)) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
         <ActivityIndicator color="#22C55E" size="large" />
       </View>
     );
   }
+
+  const needsOnboarding = !!session && !!profile && !profile.onboarding_completed_at;
 
   return (
     <>
@@ -29,7 +34,10 @@ function RootNavigator() {
           contentStyle: { backgroundColor: '#0B0F14' },
         }}
       >
-        <Stack.Protected guard={!!session}>
+        <Stack.Protected guard={needsOnboarding}>
+          <Stack.Screen name="(onboarding)" />
+        </Stack.Protected>
+        <Stack.Protected guard={!!session && !needsOnboarding}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
           name="people"
@@ -58,10 +66,62 @@ function RootNavigator() {
           }}
         />
         <Stack.Screen
-          name="settings"
+          name="paywall"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="settings/index"
           options={{
             headerShown: true,
             title: 'Settings',
+            headerStyle: { backgroundColor: '#151B23' },
+            headerTintColor: '#FFFFFF',
+          }}
+        />
+        <Stack.Screen
+          name="settings/profile"
+          options={{
+            headerShown: true,
+            title: 'Profile',
+            headerStyle: { backgroundColor: '#151B23' },
+            headerTintColor: '#FFFFFF',
+          }}
+        />
+        <Stack.Screen
+          name="settings/account"
+          options={{
+            headerShown: true,
+            title: 'Account',
+            headerStyle: { backgroundColor: '#151B23' },
+            headerTintColor: '#FFFFFF',
+          }}
+        />
+        <Stack.Screen
+          name="settings/notifications"
+          options={{
+            headerShown: true,
+            title: 'Notifications',
+            headerStyle: { backgroundColor: '#151B23' },
+            headerTintColor: '#FFFFFF',
+          }}
+        />
+        <Stack.Screen
+          name="settings/body-weight"
+          options={{
+            headerShown: true,
+            title: 'Body Weight',
+            headerStyle: { backgroundColor: '#151B23' },
+            headerTintColor: '#FFFFFF',
+          }}
+        />
+        <Stack.Screen
+          name="settings/membership"
+          options={{
+            headerShown: true,
+            title: 'Manage Membership',
             headerStyle: { backgroundColor: '#151B23' },
             headerTintColor: '#FFFFFF',
           }}

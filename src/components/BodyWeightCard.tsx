@@ -1,36 +1,13 @@
-import { router, useFocusEffect } from 'expo-router';
-import { Check, ChevronDown, Lock } from 'lucide-react-native';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Modal, Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 
 import { dateKey, formatWeight } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 import type { BodyWeight } from '@/lib/types';
-import { usePremium } from '@/providers/PremiumProvider';
 
+import { RangePicker, rangeCutoff, type Range } from './RangePicker';
 import { WeightChart, type WeightPoint } from './WeightChart';
-
-type Range = '3m' | '1y' | 'all';
-
-const RANGE_LABELS: Record<Range, string> = {
-  '3m': '3 months',
-  '1y': '1 year',
-  all: 'All time',
-};
-const RANGE_SHORT: Record<Range, string> = {
-  '3m': '3M',
-  '1y': '1Y',
-  all: 'All',
-};
-const RANGE_OPTIONS: Range[] = ['3m', '1y', 'all'];
-const PREMIUM_RANGES: Range[] = ['1y', 'all'];
-
-function cutoffFor(range: Range): Date | null {
-  if (range === 'all') return null;
-  const d = new Date();
-  d.setDate(d.getDate() - (range === '3m' ? 90 : 365));
-  return d;
-}
 
 /**
  * Body-weight trend: line chart of weight over time plus the latest value and
@@ -38,10 +15,8 @@ function cutoffFor(range: Range): Date | null {
  * you log (or overwrite) today's weight without leaving the screen.
  */
 export function BodyWeightCard({ userId }: { userId: string | undefined }) {
-  const { isPremium } = usePremium();
   const [points, setPoints] = useState<WeightPoint[]>([]);
   const [range, setRange] = useState<Range>('3m');
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [input, setInput] = useState('');
   const [saving, setSaving] = useState(false);
@@ -53,7 +28,7 @@ export function BodyWeightCard({ userId }: { userId: string | undefined }) {
       .select('recorded_on, weight')
       .eq('user_id', userId)
       .order('recorded_on', { ascending: false });
-    const cutoff = cutoffFor(range);
+    const cutoff = rangeCutoff(range);
     if (cutoff) query = query.gte('recorded_on', dateKey(cutoff));
     const { data } = await query;
     const rows = ((data ?? []) as Pick<BodyWeight, 'recorded_on' | 'weight'>[])
@@ -116,14 +91,7 @@ export function BodyWeightCard({ userId }: { userId: string | undefined }) {
       <View className="mb-3 flex-row items-end justify-between">
         <View className="flex-row items-center gap-2">
           <Text className="text-base font-bold text-white">Body Weight</Text>
-          <Pressable
-            onPress={() => setPickerOpen(true)}
-            hitSlop={8}
-            className="flex-row items-center gap-1 rounded-full bg-surface-2 px-2.5 py-1 active:opacity-70"
-          >
-            <Text className="text-xs font-semibold text-muted">{RANGE_SHORT[range]}</Text>
-            <ChevronDown size={12} color="#8B98A9" strokeWidth={2.5} />
-          </Pressable>
+          <RangePicker value={range} onChange={setRange} />
         </View>
         {latest !== null && (
           <View className="flex-row items-baseline gap-2">
@@ -140,60 +108,6 @@ export function BodyWeightCard({ userId }: { userId: string | undefined }) {
       </View>
 
       <WeightChart data={points} />
-
-      <Modal
-        visible={pickerOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPickerOpen(false)}
-      >
-        <Pressable
-          className="flex-1 items-center justify-center bg-black/60 px-10"
-          onPress={() => setPickerOpen(false)}
-        >
-          <Pressable
-            onPress={(e) => e.stopPropagation()}
-            className="w-full max-w-[280px] overflow-hidden rounded-2xl bg-surface"
-          >
-            <View className="border-b border-white/5 px-4 py-3">
-              <Text className="text-[11px] font-bold uppercase tracking-[2.5px] text-muted">
-                Range
-              </Text>
-            </View>
-            {RANGE_OPTIONS.map((opt) => {
-              const selected = opt === range;
-              const locked = !isPremium && PREMIUM_RANGES.includes(opt);
-              return (
-                <Pressable
-                  key={opt}
-                  onPress={() => {
-                    setPickerOpen(false);
-                    if (locked) {
-                      router.push('/premium');
-                      return;
-                    }
-                    setRange(opt);
-                  }}
-                  className="flex-row items-center justify-between border-b border-white/5 px-4 py-3.5 active:opacity-70"
-                >
-                  <Text
-                    className={`text-[15px] ${
-                      selected ? 'font-bold text-primary' : locked ? 'text-muted' : 'text-white'
-                    }`}
-                  >
-                    {RANGE_LABELS[opt]}
-                  </Text>
-                  {locked ? (
-                    <Lock size={14} color="#8B98A9" strokeWidth={2.5} />
-                  ) : selected ? (
-                    <Check size={16} color="#22C55E" strokeWidth={2.5} />
-                  ) : null}
-                </Pressable>
-              );
-            })}
-          </Pressable>
-        </Pressable>
-      </Modal>
 
       <View className="mt-3 border-t border-white/5 pt-3">
         {editing ? (

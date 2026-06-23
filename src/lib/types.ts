@@ -22,6 +22,14 @@ export interface Profile {
   longest_streak: number;
   last_workout_date: string | null;
   preferred_unit: 'lbs' | 'kg';
+  distance_unit: 'mi' | 'km';
+  gender: 'male' | 'female' | 'other' | null;
+  birthday: string | null;
+  height_cm: number | null;
+  primary_goal: 'build_muscle' | 'gain_strength' | 'fat_loss' | null;
+  experience_level: 'beginner' | 'intermediate' | 'advanced' | null;
+  referral_source: string | null;
+  onboarding_completed_at: string | null;
 }
 
 /** Body parts the `react-native-body-highlighter` library understands. */
@@ -108,6 +116,7 @@ export interface FeedWorkout extends Workout {
     avatar_url: string | null;
   };
   workout_sets: { id: string; is_pr: boolean }[];
+  workout_photos: { photo_url: string; position: number }[];
   feed_interactions: FeedInteraction[];
 }
 

@@ -7,19 +7,30 @@ import {
   PersonStanding,
   TrendingUp,
 } from 'lucide-react-native';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { BodyWeightCard } from '@/components/BodyWeightCard';
 import { PremiumGate } from '@/components/PremiumGate';
-import { WeeklyVolumeChart, type WeekVolume } from '@/components/WeeklyVolumeChart';
+import { ProBadge } from '@/components/ProBadge';
+import { RangePicker, type Range } from '@/components/RangePicker';
+import {
+  WeeklyVolumeChart,
+  type VolumeGranularity,
+  type WeekVolume,
+} from '@/components/WeeklyVolumeChart';
 import { formatVolume } from '@/lib/format';
 import { computeInsights, type Insights } from '@/lib/insights';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/AuthProvider';
 
-const WEEKS_SHOWN = 12;
 const MUSCLE_ROWS_SHOWN = 6;
+
+const VOLUME_RANGE_LABEL: Record<Range, string> = {
+  '3m': '12 weeks',
+  '1y': '12 months',
+  all: 'monthly',
+};
 
 interface SessionRow {
   total_volume: number;
@@ -73,7 +84,8 @@ export default function StatsScreen() {
   const userId = session?.user.id;
 
   const [totalWorkouts, setTotalWorkouts] = useState(0);
-  const [weeklyVolume, setWeeklyVolume] = useState<WeekVolume[]>([]);
+  const [allWorkouts, setAllWorkouts] = useState<SessionRow[]>([]);
+  const [volumeRange, setVolumeRange] = useState<Range>('3m');
   const [bestLifts, setBestLifts] = useState<BestLift[]>([]);
   const [muscleSplit, setMuscleSplit] = useState<MuscleShare[]>([]);
   const [records, setRecords] = useState<Records | null>(null);
@@ -126,7 +138,7 @@ export default function StatsScreen() {
             .slice(0, MUSCLE_ROWS_SHOWN)
     );
 
-    setWeeklyVolume(buildWeeklyVolume(workouts));
+    setAllWorkouts(workouts);
 
     setBestLifts(
       ((prsRes.data ?? []) as unknown as { value: number; exercises: { name: string } | null }[])
@@ -172,6 +184,12 @@ export default function StatsScreen() {
       load();
     }, [load])
   );
+
+  const volumeBuckets = useMemo<WeekVolume[]>(
+    () => buildVolumeBuckets(allWorkouts, volumeRange),
+    [allWorkouts, volumeRange]
+  );
+  const volumeGranularity: VolumeGranularity = volumeRange === '3m' ? 'week' : 'month';
 
   if (!profile) return null;
 
@@ -258,14 +276,24 @@ export default function StatsScreen() {
 
         <Hairline />
 
-        <Section label="Weekly Volume" eyebrowSuffix={`${WEEKS_SHOWN} weeks`}>
+        <Section
+          label="Training Volume"
+          eyebrowSuffix={
+            <View className="flex-row items-center gap-2">
+              <Text className="text-[11px] font-medium uppercase tracking-[1.5px] text-muted/70">
+                {VOLUME_RANGE_LABEL[volumeRange]}
+              </Text>
+              <RangePicker value={volumeRange} onChange={setVolumeRange} />
+            </View>
+          }
+        >
           <View className="rounded-2xl bg-surface p-4">
-            <WeeklyVolumeChart data={weeklyVolume} />
+            <WeeklyVolumeChart data={volumeBuckets} granularity={volumeGranularity} />
           </View>
         </Section>
 
         {insights && hasInsights(insights) && (
-          <Section label="Coach Insights" eyebrowSuffix="Premium">
+          <Section label="Coach Insights" eyebrowSuffix={<ProBadge />}>
             <View className="rounded-2xl bg-surface p-4">
               <PremiumGate
                 title="Smart Insights"
@@ -291,7 +319,7 @@ function Section({
   children,
 }: {
   label: string;
-  eyebrowSuffix?: string;
+  eyebrowSuffix?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -300,10 +328,12 @@ function Section({
         <Text className="text-[11px] font-bold uppercase tracking-[2.5px] text-muted">
           {label}
         </Text>
-        {eyebrowSuffix && (
+        {typeof eyebrowSuffix === 'string' ? (
           <Text className="text-[11px] font-medium uppercase tracking-[1.5px] text-muted/70">
             {eyebrowSuffix}
           </Text>
+        ) : (
+          eyebrowSuffix
         )}
       </View>
       {children}
@@ -475,28 +505,69 @@ function InsightRow({
   return content;
 }
 
-function buildWeeklyVolume(workouts: SessionRow[]): WeekVolume[] {
+function buildVolumeBuckets(workouts: SessionRow[], range: Range): WeekVolume[] {
+  if (range === '3m') return buildWeeklyBuckets(workouts, 12);
+  if (range === '1y') return buildMonthlyBuckets(workouts, 12);
+  return buildAllTimeMonthlyBuckets(workouts);
+}
+
+function buildWeeklyBuckets(workouts: SessionRow[], weeks: number): WeekVolume[] {
   const monday = new Date();
   monday.setHours(0, 0, 0, 0);
   monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
 
-  const weeks: WeekVolume[] = [];
-  for (let i = WEEKS_SHOWN - 1; i >= 0; i--) {
+  const buckets: WeekVolume[] = [];
+  for (let i = weeks - 1; i >= 0; i--) {
     const start = new Date(monday);
     start.setDate(monday.getDate() - i * 7);
-    weeks.push({ weekStart: start, volume: 0 });
+    buckets.push({ weekStart: start, volume: 0 });
   }
 
-  const firstStart = weeks[0].weekStart.getTime();
+  const firstStart = buckets[0].weekStart.getTime();
   for (const w of workouts) {
     const ended = new Date(w.ended_at);
     if (ended.getTime() < firstStart) continue;
     const index = Math.floor((ended.getTime() - firstStart) / (7 * 86_400_000));
-    if (index >= 0 && index < weeks.length) {
-      weeks[index].volume += Number(w.total_volume);
+    if (index >= 0 && index < buckets.length) {
+      buckets[index].volume += Number(w.total_volume);
     }
   }
-  return weeks;
+  return buckets;
+}
+
+function buildMonthlyBuckets(workouts: SessionRow[], months: number): WeekVolume[] {
+  const now = new Date();
+  const firstMonth = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+
+  const buckets: WeekVolume[] = [];
+  for (let i = 0; i < months; i++) {
+    buckets.push({
+      weekStart: new Date(firstMonth.getFullYear(), firstMonth.getMonth() + i, 1),
+      volume: 0,
+    });
+  }
+
+  const firstTs = firstMonth.getTime();
+  for (const w of workouts) {
+    const ended = new Date(w.ended_at);
+    if (ended.getTime() < firstTs) continue;
+    const idx =
+      (ended.getFullYear() - firstMonth.getFullYear()) * 12 +
+      (ended.getMonth() - firstMonth.getMonth());
+    if (idx >= 0 && idx < buckets.length) {
+      buckets[idx].volume += Number(w.total_volume);
+    }
+  }
+  return buckets;
+}
+
+function buildAllTimeMonthlyBuckets(workouts: SessionRow[]): WeekVolume[] {
+  if (workouts.length === 0) return buildMonthlyBuckets(workouts, 12);
+  const first = new Date(workouts[0].ended_at);
+  const now = new Date();
+  const months =
+    (now.getFullYear() - first.getFullYear()) * 12 + (now.getMonth() - first.getMonth()) + 1;
+  return buildMonthlyBuckets(workouts, Math.max(months, 1));
 }
 
 function formatMinutes(minutes: number): string {

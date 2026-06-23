@@ -23,11 +23,11 @@ export default function SignUp() {
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSignUp() {
-    const trimmed = username.trim();
-    if (!/^[a-zA-Z0-9_]{3,24}$/.test(trimmed)) {
+    const trimmed = username.trim().toLowerCase();
+    if (!/^[a-z0-9_]{3,24}$/.test(trimmed)) {
       Alert.alert(
         'Invalid username',
-        'Use 3–24 characters: letters, numbers, and underscores.'
+        'Use 3–24 characters: lowercase letters, numbers, and underscores.'
       );
       return;
     }
@@ -79,7 +79,7 @@ export default function SignUp() {
           placeholderTextColor="#8B98A9"
           autoCapitalize="none"
           value={username}
-          onChangeText={setUsername}
+          onChangeText={(t) => setUsername(t.toLowerCase())}
         />
         <TextInput
           className="mb-3 rounded-xl border border-border bg-surface px-4 py-3.5 text-base text-white"

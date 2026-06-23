@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
 const ICON_SIZE = 28;
-const BAR_CONTENT_HEIGHT = 40;
+const BAR_CONTENT_HEIGHT = 44;
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
@@ -21,7 +21,7 @@ export default function TabsLayout() {
           elevation: 0,
           shadowOpacity: 0,
           height: BAR_CONTENT_HEIGHT + insets.bottom,
-          paddingTop: 2,
+          paddingTop: 10,
           paddingBottom: insets.bottom,
         },
         tabBarActiveTintColor: '#22C55E',
@@ -45,15 +45,6 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="feed"
-        options={{
-          title: 'Feed',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon focused={focused} color={color} name="home" />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="workout"
         options={{
           title: 'Workout',
@@ -63,11 +54,11 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="premium"
+        name="feed"
         options={{
-          title: 'Premium',
+          title: 'Feed',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon focused={focused} color={color} name="sparkles" />
+            <TabIcon focused={focused} color={color} name="home" />
           ),
         }}
       />

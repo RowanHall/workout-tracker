@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ExercisePicker } from '@/components/ExercisePicker';
 import { MuscleMap } from '@/components/MuscleMap';
 import { RestTimer } from '@/components/RestTimer';
+import { RestTimerLocked } from '@/components/RestTimerLocked';
 import type { ShareStats } from '@/components/ShareableWorkoutCard';
 import { WeekTracker } from '@/components/WeekTracker';
 import { WorkoutShareSheet } from '@/components/WorkoutShareSheet';
@@ -140,10 +141,10 @@ export default function WorkoutScreen() {
     if (!isPremium && routines.length >= FREE_ROUTINE_LIMIT) {
       Alert.alert(
         'Routine limit reached',
-        `Free accounts can save up to ${FREE_ROUTINE_LIMIT} routines. Upgrade to Kova Premium for unlimited routines.`,
+        `Free accounts can save up to ${FREE_ROUTINE_LIMIT} routines. Upgrade to Kova Pro for unlimited routines.`,
         [
           { text: 'Not now', style: 'cancel' },
-          { text: 'Go Premium', onPress: () => router.push('/premium') },
+          { text: 'Go Pro', onPress: () => router.push('/paywall') },
         ]
       );
       return;
@@ -386,6 +387,7 @@ export default function WorkoutScreen() {
             onEditRoutine={(id) => router.push(`/routine/${id}`)}
             onNewRoutine={handleNewRoutine}
           />
+
         </ScrollView>
         <WorkoutSummaryModal
           summary={summary}
@@ -460,7 +462,11 @@ export default function WorkoutScreen() {
           </View>
 
           <View className="mt-3">
-            <RestTimer trigger={restTrigger} />
+            {isPremium ? (
+              <RestTimer trigger={restTrigger} />
+            ) : (
+              <RestTimerLocked trigger={restTrigger} />
+            )}
           </View>
         </View>
 
@@ -578,7 +584,7 @@ function RoutinesSection({
 
       {atLimit && (
         <Text className="mt-3 text-center text-xs text-muted">
-          Free limit reached. Go Premium for unlimited routines.
+          Free limit reached. Go Pro for unlimited routines.
         </Text>
       )}
     </View>

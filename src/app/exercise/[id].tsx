@@ -1,8 +1,10 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { LineChart, type LinePoint } from '@/components/LineChart';
+import { RangePicker, rangeCutoff, type Range } from '@/components/RangePicker';
+import { formatVolume } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 import { estimatedOneRepMax } from '@/lib/strength';
 import { useAuth } from '@/providers/AuthProvider';
@@ -13,11 +15,14 @@ interface SetRow {
   workouts: { id: string; ended_at: string } | null;
 }
 
-interface SessionBest {
-  /** Workout end time in ms, the chart's x value. */
+interface SessionStats {
+  /** Workout end time in ms — the chart's x value. */
   t: number;
   e1rm: number;
   topWeight: number;
+  volume: number;
+  setCount: number;
+  bestReps: number;
 }
 
 interface ExerciseData {
@@ -25,12 +30,22 @@ interface ExerciseData {
   muscleGroup: string;
   predictedMax: number;
   recordedMax: number;
-  e1rmSeries: LinePoint[];
-  prSeries: LinePoint[];
-  /** Indices into e1rmSeries where a new all-time best was set. */
-  prMarkers: number[];
-  sessions: number;
+  sessions: SessionStats[];
 }
+
+type Metric = 'e1rm' | 'top' | 'volume';
+
+const METRIC_OPTIONS: { id: Metric; label: string }[] = [
+  { id: 'e1rm', label: 'Est. 1RM' },
+  { id: 'top', label: 'Top Set' },
+  { id: 'volume', label: 'Volume' },
+];
+
+const METRIC_SUBTITLE: Record<Metric, string> = {
+  e1rm: 'best estimated 1RM per session',
+  top: 'heaviest weight lifted per session',
+  volume: 'total volume per session',
+};
 
 const MUSCLE_LABELS: Record<string, string> = {
   chest: 'Chest',
@@ -53,6 +68,8 @@ export default function ExerciseDetailScreen() {
 
   const [data, setData] = useState<ExerciseData | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [metric, setMetric] = useState<Metric>('e1rm');
+  const [range, setRange] = useState<Range>('3m');
 
   useEffect(() => {
     if (!id || !userId) return;
@@ -79,50 +96,46 @@ export default function ExerciseDetailScreen() {
         return;
       }
 
-      // Best estimated 1RM and heaviest weight per session.
-      const bySession = new Map<string, SessionBest>();
+      const bySession = new Map<string, SessionStats>();
       let predictedMax = 0;
       let recordedMax = 0;
       for (const s of sets) {
         if (!s.workouts) continue;
-        const e1rm = estimatedOneRepMax(Number(s.weight), s.reps);
+        const weight = Number(s.weight);
+        const reps = s.reps;
+        const e1rm = estimatedOneRepMax(weight, reps);
+        const setVolume = weight * reps;
         predictedMax = Math.max(predictedMax, e1rm);
-        recordedMax = Math.max(recordedMax, Number(s.weight));
+        recordedMax = Math.max(recordedMax, weight);
         const key = s.workouts.id;
         const t = new Date(s.workouts.ended_at).getTime();
         const existing = bySession.get(key);
         if (existing) {
           existing.e1rm = Math.max(existing.e1rm, e1rm);
-          existing.topWeight = Math.max(existing.topWeight, Number(s.weight));
+          existing.topWeight = Math.max(existing.topWeight, weight);
+          existing.volume += setVolume;
+          existing.setCount += 1;
+          existing.bestReps = Math.max(existing.bestReps, reps);
         } else {
-          bySession.set(key, { t, e1rm, topWeight: Number(s.weight) });
+          bySession.set(key, {
+            t,
+            e1rm,
+            topWeight: weight,
+            volume: setVolume,
+            setCount: 1,
+            bestReps: reps,
+          });
         }
       }
 
       const sessions = [...bySession.values()].sort((a, b) => a.t - b.t);
-      const e1rmSeries: LinePoint[] = sessions.map((s) => ({ t: s.t, y: s.e1rm }));
-
-      // PR progression + the indices where a *new* all-time best happened.
-      const prSeries: LinePoint[] = [];
-      const prMarkers: number[] = [];
-      let running = 0;
-      sessions.forEach((s, i) => {
-        if (s.e1rm > running) {
-          prMarkers.push(i);
-          running = s.e1rm;
-        }
-        prSeries.push({ t: s.t, y: running });
-      });
 
       setData({
         name: exercise.name,
         muscleGroup: exercise.muscle_group,
         predictedMax,
         recordedMax,
-        e1rmSeries,
-        prSeries,
-        prMarkers,
-        sessions: sessions.length,
+        sessions,
       });
       setLoaded(true);
     }
@@ -132,6 +145,33 @@ export default function ExerciseDetailScreen() {
       cancelled = true;
     };
   }, [id, userId]);
+
+  const filtered = useMemo(() => {
+    if (!data) return [] as SessionStats[];
+    const cutoff = rangeCutoff(range);
+    if (!cutoff) return data.sessions;
+    const min = cutoff.getTime();
+    return data.sessions.filter((s) => s.t >= min);
+  }, [data, range]);
+
+  const trendSeries = useMemo<LinePoint[]>(
+    () => filtered.map((s) => ({ t: s.t, y: metricValue(s, metric) })),
+    [filtered, metric]
+  );
+
+  const { prSeries, prMarkers } = useMemo(() => {
+    const series: LinePoint[] = [];
+    const markers: number[] = [];
+    let running = 0;
+    filtered.forEach((s, i) => {
+      if (s.e1rm > running) {
+        markers.push(i);
+        running = s.e1rm;
+      }
+      series.push({ t: s.t, y: running });
+    });
+    return { prSeries: series, prMarkers: markers };
+  }, [filtered]);
 
   if (!loaded) {
     return (
@@ -155,13 +195,20 @@ export default function ExerciseDetailScreen() {
     <ScrollView className="flex-1 bg-background" contentContainerClassName="p-4 pb-8">
       <Stack.Screen options={{ title: data.name }} />
 
-      <Text className="text-2xl font-extrabold text-white">{data.name}</Text>
-      <Text className="mb-4 text-sm capitalize text-muted">
-        {MUSCLE_LABELS[data.muscleGroup] ?? data.muscleGroup.replace('_', ' ')} ·{' '}
-        {data.sessions} session{data.sessions === 1 ? '' : 's'}
-      </Text>
+      <View className="mb-1 flex-row items-start justify-between gap-3">
+        <View className="flex-1">
+          <Text className="text-2xl font-extrabold text-white">{data.name}</Text>
+          <Text className="mt-0.5 text-sm capitalize text-muted">
+            {MUSCLE_LABELS[data.muscleGroup] ?? data.muscleGroup.replace('_', ' ')} ·{' '}
+            {data.sessions.length} session{data.sessions.length === 1 ? '' : 's'}
+          </Text>
+        </View>
+        <View className="pt-1">
+          <RangePicker value={range} onChange={setRange} />
+        </View>
+      </View>
 
-      <View className="mb-4 flex-row gap-3">
+      <View className="mb-4 mt-4 flex-row gap-3">
         <MaxCard
           label="Predicted Max"
           sublabel="est. 1RM"
@@ -176,36 +223,100 @@ export default function ExerciseDetailScreen() {
         />
       </View>
 
-      <E1rmChart series={data.e1rmSeries} markers={data.prMarkers} />
+      <ChartCard
+        title="Performance Trend"
+        subtitle={trendSubtitle(filtered.length, metric)}
+        header={<MetricSwitcher value={metric} onChange={setMetric} />}
+      >
+        {filtered.length === 0 ? (
+          <EmptyChart />
+        ) : (
+          <LineChart
+            data={trendSeries}
+            color="#22C55E"
+            formatLabel={metric === 'volume' ? formatVolumeShort : lbsLabel}
+            formatXLabel={formatDateLabel}
+          />
+        )}
+      </ChartCard>
 
-      <ChartCard title="PR Progression" subtitle="all-time best 1RM over time">
-        <LineChart data={data.prSeries} color="#F59E0B" formatLabel={lbsLabel} />
+      <ChartCard
+        title="PR Progression"
+        subtitle={
+          prMarkers.length > 0
+            ? `${prMarkers.length} PR${prMarkers.length === 1 ? '' : 's'} in this range`
+            : 'all-time best 1RM as it stood'
+        }
+      >
+        {filtered.length === 0 ? (
+          <EmptyChart />
+        ) : (
+          <LineChart
+            data={prSeries}
+            color="#F59E0B"
+            markers={prMarkers}
+            markerColor="#FBBF24"
+            formatLabel={lbsLabel}
+            formatXLabel={formatDateLabel}
+          />
+        )}
       </ChartCard>
     </ScrollView>
   );
 }
 
-function E1rmChart({ series, markers }: { series: LinePoint[]; markers: number[] }) {
-  const subtitle =
-    markers.length > 0
-      ? `best per session · ${markers.length} PR${markers.length === 1 ? '' : 's'} highlighted`
-      : 'best per session';
+function metricValue(session: SessionStats, metric: Metric): number {
+  if (metric === 'e1rm') return session.e1rm;
+  if (metric === 'top') return session.topWeight;
+  return session.volume;
+}
 
-  return (
-    <ChartCard title="Estimated 1RM" subtitle={subtitle}>
-      <LineChart
-        data={series}
-        color="#22C55E"
-        markers={markers}
-        markerColor="#FBBF24"
-        formatLabel={lbsLabel}
-      />
-    </ChartCard>
-  );
+function trendSubtitle(count: number, metric: Metric): string {
+  if (count === 0) return METRIC_SUBTITLE[metric];
+  return `${METRIC_SUBTITLE[metric]} · ${count} session${count === 1 ? '' : 's'}`;
 }
 
 function lbsLabel(v: number): string {
   return String(Math.round(v));
+}
+
+function formatVolumeShort(v: number): string {
+  return formatVolume(v);
+}
+
+function formatDateLabel(t: number): string {
+  return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function MetricSwitcher({
+  value,
+  onChange,
+}: {
+  value: Metric;
+  onChange: (next: Metric) => void;
+}) {
+  return (
+    <View className="flex-row rounded-full bg-surface-2 p-0.5">
+      {METRIC_OPTIONS.map((opt) => {
+        const active = opt.id === value;
+        return (
+          <Pressable
+            key={opt.id}
+            onPress={() => onChange(opt.id)}
+            className={`rounded-full px-3 py-1.5 ${active ? 'bg-primary' : ''}`}
+          >
+            <Text
+              className={`text-[12px] font-semibold ${
+                active ? 'text-background' : 'text-muted'
+              }`}
+            >
+              {opt.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
 }
 
 function MaxCard({
@@ -236,17 +347,34 @@ function MaxCard({
 function ChartCard({
   title,
   subtitle,
+  header,
   children,
 }: {
   title: string;
   subtitle: string;
+  header?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <View className="mb-4 rounded-2xl bg-surface p-4">
-      <Text className="text-base font-bold text-white">{title}</Text>
-      <Text className="mb-3 text-xs text-muted">{subtitle}</Text>
+      <View className="mb-3 flex-row items-start justify-between gap-3">
+        <View className="flex-1">
+          <Text className="text-base font-bold text-white">{title}</Text>
+          <Text className="mt-0.5 text-xs text-muted">{subtitle}</Text>
+        </View>
+        {header}
+      </View>
       {children}
+    </View>
+  );
+}
+
+function EmptyChart() {
+  return (
+    <View className="h-[150px] items-center justify-center">
+      <Text className="text-center text-sm text-muted">
+        No sessions in this range yet.
+      </Text>
     </View>
   );
 }

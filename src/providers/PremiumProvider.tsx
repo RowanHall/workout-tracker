@@ -17,8 +17,8 @@ import Purchases, {
 
 import { supabase } from '@/lib/supabase';
 
-/** The RevenueCat entitlement that unlocks Kova Premium. Create this exact id
- *  in the RevenueCat dashboard and attach the subscription products to it. */
+/** The RevenueCat entitlement that unlocks Kova Pro. The id stays `premium`
+ *  to match the existing RevenueCat dashboard configuration. */
 const ENTITLEMENT_ID = 'premium';
 
 // Native in-app purchases need a custom dev/standalone build; the module isn't

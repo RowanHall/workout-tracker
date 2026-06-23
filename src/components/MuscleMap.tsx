@@ -2,12 +2,16 @@ import { useMemo, useState } from 'react';
 import { View, type LayoutChangeEvent } from 'react-native';
 import Body, { type ExtendedBodyPart } from 'react-native-body-highlighter';
 
+import { useAuth } from '@/providers/AuthProvider';
 import type { ExerciseMuscle } from '@/lib/types';
 
 interface MuscleMapProps {
   muscles: ExerciseMuscle[];
   /** Optional cap on scale. Defaults to 1 so we never upscale past the SVG's native size. */
   maxScale?: number;
+  /** Override the rendered body. When omitted, falls back to the signed-in
+   *  user's onboarding gender (only 'female' switches to the female SVG —
+   *  'other' and missing values render as male). */
   gender?: 'male' | 'female';
   /** Which body view to render. 'both' shows front and back side-by-side (the
    *  default), while 'front' or 'back' show a single, compact view — useful
@@ -26,9 +30,12 @@ const NATIVE_BODY_WIDTH = 200;
 export function MuscleMap({
   muscles,
   maxScale = 1,
-  gender = 'male',
+  gender,
   side = 'both',
 }: MuscleMapProps) {
+  const { profile } = useAuth();
+  const resolvedGender: 'male' | 'female' =
+    gender ?? (profile?.gender === 'female' ? 'female' : 'male');
   const [width, setWidth] = useState(0);
 
   const data = useMemo<ExtendedBodyPart[]>(
@@ -60,7 +67,7 @@ export function MuscleMap({
         <Body
           data={data}
           side="front"
-          gender={gender}
+          gender={resolvedGender}
           scale={scale}
           colors={COLORS}
           border={BORDER}
@@ -71,7 +78,7 @@ export function MuscleMap({
         <Body
           data={data}
           side="back"
-          gender={gender}
+          gender={resolvedGender}
           scale={scale}
           colors={COLORS}
           border={BORDER}

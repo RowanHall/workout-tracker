@@ -5,6 +5,7 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Avatar } from "@/components/Avatar";
+import { KovaLogo } from "@/components/KovaLogo";
 import { MuscleMap } from "@/components/MuscleMap";
 import { RadarChart, type RadarAxis } from "@/components/RadarChart";
 import { VolumeHeatmap } from "@/components/VolumeHeatmap";
@@ -150,23 +151,40 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 48 }}
       >
-        <View className="flex-row items-center justify-between px-5 pt-2">
-          <View className="flex-row items-center gap-0.5">
-            <Flame size={32} color="#F59E0B" strokeWidth={2.5} />
-            <Text
-              className="text-[20px] font-semibold text-white"
-              style={{ fontVariant: ["tabular-nums"], letterSpacing: -0.3 }}
-            >
-              {streak}
-            </Text>
+        <View className="flex-row items-center px-5 pt-2">
+          <View className="flex-1 flex-row items-center">
+            <KovaLogo size={24} style={{ color: "#FFFFFF" }} />
           </View>
-          <Pressable
-            className="p-1 active:opacity-70"
-            onPress={() => router.push("/settings")}
-            hitSlop={8}
-          >
-            <Settings size={22} color="#8B98A9" strokeWidth={1.75} />
-          </Pressable>
+          <View className="flex-row items-center">
+            <Flame size={32} color="#F59E0B" strokeWidth={2.5} />
+            <View
+              pointerEvents="none"
+              className="absolute flex-row items-center"
+              style={{ left: 34, top: 0, bottom: 0 }}
+            >
+              <Text
+                style={{
+                  fontSize: 20,
+                  fontWeight: "900",
+                  fontStyle: "italic",
+                  color: "#FFFFFF",
+                  letterSpacing: -0.8,
+                  fontVariant: ["tabular-nums"],
+                }}
+              >
+                {streak}
+              </Text>
+            </View>
+          </View>
+          <View className="flex-1 flex-row items-center justify-end">
+            <Pressable
+              className="p-1 active:opacity-70"
+              onPress={() => router.push("/settings")}
+              hitSlop={8}
+            >
+              <Settings size={22} color="#8B98A9" strokeWidth={1.75} />
+            </Pressable>
+          </View>
         </View>
 
         <Identity

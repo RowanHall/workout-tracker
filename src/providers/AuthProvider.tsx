@@ -51,7 +51,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
       meta.preferred_username ??
       (user.email ?? '').split('@')[0]
     )
-      .replace(/[^a-zA-Z0-9_]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, '')
       .slice(0, 24);
     const username = fromHandle.length >= 3 ? fromHandle : fallback;
     const displayName =

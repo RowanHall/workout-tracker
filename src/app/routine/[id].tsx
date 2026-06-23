@@ -199,10 +199,10 @@ export default function RoutineEditorScreen() {
             setSaving(false);
             Alert.alert(
               'Routine limit reached',
-              `Free accounts can save up to ${FREE_ROUTINE_LIMIT} routines. Upgrade to Kova Premium for unlimited routines.`,
+              `Free accounts can save up to ${FREE_ROUTINE_LIMIT} routines. Upgrade to Kova Pro for unlimited routines.`,
               [
                 { text: 'Not now', style: 'cancel' },
-                { text: 'Go Premium', onPress: () => router.replace('/premium') },
+                { text: 'Go Pro', onPress: () => router.replace('/paywall') },
               ]
             );
             return;
