@@ -6,12 +6,14 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { Avatar } from '@/components/Avatar';
 import { MuscleMap } from '@/components/MuscleMap';
 import type { ShareStats } from '@/components/ShareableWorkoutCard';
+import { WorkoutOptionsMenu } from '@/components/WorkoutOptionsMenu';
 import { WorkoutPhotosCarousel } from '@/components/WorkoutPhotosCarousel';
 import { WorkoutShareSheet } from '@/components/WorkoutShareSheet';
 import { formatDuration, formatVolume, timeAgo } from '@/lib/format';
 import { mergeMuscles } from '@/lib/muscles';
 import { supabase } from '@/lib/supabase';
 import type { ExerciseMuscle, MuscleGroup, Workout, WorkoutSet } from '@/lib/types';
+import { useAuth } from '@/providers/AuthProvider';
 
 interface DetailSet extends WorkoutSet {
   created_at: string;
@@ -73,6 +75,8 @@ function groupByExercise(sets: DetailSet[]): ExerciseGroup[] {
 
 export default function WorkoutDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { session } = useAuth();
+  const myId = session?.user.id ?? null;
   const [workout, setWorkout] = useState<WorkoutDetail | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -152,6 +156,18 @@ export default function WorkoutDetailScreen() {
           dateIso={workout.ended_at ?? workout.started_at}
           onAvatarPress={() => router.push(`/user/${workout.user_id}`)}
           onSharePress={() => setShareOpen(true)}
+          optionsMenu={
+            myId ? (
+              <WorkoutOptionsMenu
+                workoutId={workout.id}
+                workoutOwnerId={workout.user_id}
+                workoutOwnerUsername={workout.profiles.username}
+                currentUserId={myId}
+                onBlocked={() => router.back()}
+                iconColor="#FFFFFF"
+              />
+            ) : null
+          }
         />
 
         <View className="px-5 pt-6">
@@ -219,6 +235,7 @@ function IdentityRow({
   dateIso,
   onAvatarPress,
   onSharePress,
+  optionsMenu,
 }: {
   name: string;
   username: string;
@@ -226,6 +243,7 @@ function IdentityRow({
   dateIso: string;
   onAvatarPress: () => void;
   onSharePress: () => void;
+  optionsMenu?: React.ReactNode;
 }) {
   return (
     <View className="flex-row items-center justify-between px-5 pt-3">
@@ -253,6 +271,8 @@ function IdentityRow({
         <Share2 size={14} color="#22C55E" strokeWidth={2.5} />
         <Text className="text-xs font-bold text-primary">Share</Text>
       </Pressable>
+
+      {optionsMenu && <View className="ml-2.5">{optionsMenu}</View>}
     </View>
   );
 }

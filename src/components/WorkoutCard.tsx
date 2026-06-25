@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
+import { WorkoutOptionsMenu } from '@/components/WorkoutOptionsMenu';
 import { formatDuration, formatVolume, timeAgo } from '@/lib/format';
 import type { FeedWorkout } from '@/lib/types';
 
@@ -23,6 +24,7 @@ interface WorkoutCardProps {
   currentUserId: string;
   onToggleCheer: (workout: FeedWorkout, hasCheered: boolean) => void;
   onAddComment: (workout: FeedWorkout, content: string) => Promise<void>;
+  onBlocked?: () => void;
 }
 
 export function WorkoutCard({
@@ -30,6 +32,7 @@ export function WorkoutCard({
   currentUserId,
   onToggleCheer,
   onAddComment,
+  onBlocked,
 }: WorkoutCardProps) {
   const [showComments, setShowComments] = useState(false);
   const [draft, setDraft] = useState('');
@@ -60,20 +63,29 @@ export function WorkoutCard({
 
   return (
     <View className="mb-4 overflow-hidden rounded-2xl bg-surface">
-      <Pressable
-        className="flex-row items-center px-4 py-3 active:opacity-70"
-        onPress={() => router.push(`/user/${workout.user_id}`)}
-      >
-        <Avatar url={workout.profiles.avatar_url} name={name} size={36} />
-        <View className="ml-3 flex-1">
-          <Text className="text-[14px] font-semibold text-white" numberOfLines={1}>
-            {name}
-          </Text>
-          <Text className="text-xs text-muted" numberOfLines={1}>
-            @{workout.profiles.username} · {timeAgo(workout.ended_at ?? workout.started_at)}
-          </Text>
-        </View>
-      </Pressable>
+      <View className="flex-row items-center px-4 py-3">
+        <Pressable
+          className="flex-1 flex-row items-center active:opacity-70"
+          onPress={() => router.push(`/user/${workout.user_id}`)}
+        >
+          <Avatar url={workout.profiles.avatar_url} name={name} size={36} />
+          <View className="ml-3 flex-1">
+            <Text className="text-[14px] font-semibold text-white" numberOfLines={1}>
+              {name}
+            </Text>
+            <Text className="text-xs text-muted" numberOfLines={1}>
+              @{workout.profiles.username} · {timeAgo(workout.ended_at ?? workout.started_at)}
+            </Text>
+          </View>
+        </Pressable>
+        <WorkoutOptionsMenu
+          workoutId={workout.id}
+          workoutOwnerId={workout.user_id}
+          workoutOwnerUsername={workout.profiles.username}
+          currentUserId={currentUserId}
+          onBlocked={onBlocked}
+        />
+      </View>
 
       <FeedHero
         workoutId={workout.id}

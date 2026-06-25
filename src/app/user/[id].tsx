@@ -1,7 +1,15 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronRight, Dumbbell, Flame, Star, TrendingUp } from 'lucide-react-native';
+import {
+  ChevronRight,
+  Dumbbell,
+  Flame,
+  MoreHorizontal,
+  Star,
+  TrendingUp,
+  UserX,
+} from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
 import { formatDuration, formatVolume, timeAgo } from '@/lib/format';
@@ -35,12 +43,22 @@ export default function UserProfileScreen() {
   const [stats, setStats] = useState<FriendStats | null>(null);
   const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
   const [isFollowing, setIsFollowing] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   const load = useCallback(async () => {
     if (!id || !myId) return;
-    const [profileRes, followersRes, followingRes, myFollowRes, workoutsRes, setsRes, prsRes] =
-      await Promise.all([
+    const [
+      profileRes,
+      followersRes,
+      followingRes,
+      myFollowRes,
+      workoutsRes,
+      setsRes,
+      prsRes,
+      blockRes,
+    ] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', id).maybeSingle(),
         supabase
           .from('social_follows')
@@ -73,6 +91,11 @@ export default function UserProfileScreen() {
           .eq('record_type', 'one_rep_max')
           .order('value', { ascending: false })
           .limit(5),
+        supabase
+          .from('user_blocks')
+          .select('blocked_id', { count: 'exact', head: true })
+          .eq('blocker_id', myId)
+          .eq('blocked_id', id),
       ]);
 
     setProfile((profileRes.data as Profile) ?? null);
@@ -81,6 +104,7 @@ export default function UserProfileScreen() {
       following: followingRes.count ?? 0,
     });
     setIsFollowing((myFollowRes.count ?? 0) > 0);
+    setIsBlocked((blockRes.count ?? 0) > 0);
 
     const workouts = (workoutsRes.data ?? []) as Workout[];
     const sets = (setsRes.data ?? []) as unknown as {
@@ -143,6 +167,51 @@ export default function UserProfileScreen() {
     load();
   }
 
+  function confirmBlock() {
+    if (!myId || !id || isSelf) return;
+    const handle = profile?.username ? `@${profile.username}` : 'this user';
+    setMenuOpen(false);
+    Alert.alert(
+      `Block ${handle}?`,
+      "They won't be able to see your workouts or interact with you, and you won't see theirs. You can unblock from Settings.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await supabase
+              .from('user_blocks')
+              .insert({ blocker_id: myId, blocked_id: id });
+            if (error && !/duplicate key/i.test(error.message)) {
+              Alert.alert('Could not block', error.message);
+              return;
+            }
+            setIsBlocked(true);
+            setIsFollowing(false);
+            load();
+          },
+        },
+      ],
+    );
+  }
+
+  async function handleUnblock() {
+    if (!myId || !id) return;
+    setMenuOpen(false);
+    const { error } = await supabase
+      .from('user_blocks')
+      .delete()
+      .eq('blocker_id', myId)
+      .eq('blocked_id', id);
+    if (error) {
+      Alert.alert('Could not unblock', error.message);
+      return;
+    }
+    setIsBlocked(false);
+    load();
+  }
+
   if (!loaded) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
@@ -165,6 +234,17 @@ export default function UserProfileScreen() {
 
   return (
     <ScrollView className="flex-1 bg-background" contentContainerClassName="p-4 pb-8">
+      {!isSelf && (
+        <View className="-mt-1 mb-1 flex-row justify-end">
+          <Pressable
+            hitSlop={10}
+            className="rounded-full bg-surface-2 p-2 active:opacity-70"
+            onPress={() => setMenuOpen(true)}
+          >
+            <MoreHorizontal size={18} color="#FFFFFF" strokeWidth={2} />
+          </Pressable>
+        </View>
+      )}
       <View className="mb-4 items-center">
         <View className="mb-3">
           <Avatar url={profile.avatar_url} name={name} size={80} />
@@ -180,7 +260,7 @@ export default function UserProfileScreen() {
           </Text>
         </View>
 
-        {!isSelf && (
+        {!isSelf && !isBlocked && (
           <Pressable
             className={`mt-3 rounded-full px-8 py-2.5 active:opacity-70 ${
               isFollowing ? 'bg-surface-2' : 'bg-primary'
@@ -194,21 +274,76 @@ export default function UserProfileScreen() {
             </Text>
           </Pressable>
         )}
+        {!isSelf && isBlocked && (
+          <Pressable
+            className="mt-3 rounded-full bg-surface-2 px-8 py-2.5 active:opacity-70"
+            onPress={handleUnblock}
+          >
+            <Text className="font-bold text-danger">Unblock</Text>
+          </Pressable>
+        )}
       </View>
 
-      <View className="mb-4 rounded-2xl bg-surface p-4">
-        <View className="flex-row">
-          <HeroStat
-            value={String(streak)}
-            label="Streak"
-            icon={<Flame size={16} color="#F59E0B" strokeWidth={1.75} />}
-          />
-          <HeroStat value={(stats?.workouts ?? 0).toLocaleString()} label="Workouts" />
-          <HeroStat value={String(profile.longest_streak)} label="Best streak" />
+      {!isSelf && isBlocked && (
+        <View className="mb-4 rounded-2xl bg-surface p-4">
+          <Text className="text-center text-muted">
+            You blocked @{profile.username}. Their workouts and comments are hidden.
+          </Text>
         </View>
-      </View>
+      )}
 
-      {hiddenByPrivacy && (
+      <Modal
+        visible={menuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuOpen(false)}
+      >
+        <Pressable
+          className="flex-1 justify-end bg-black/60"
+          onPress={() => setMenuOpen(false)}
+        >
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            className="rounded-t-3xl bg-surface px-2 pb-10 pt-3"
+          >
+            <View className="mb-2 h-1 w-10 self-center rounded-full bg-border" />
+            <Pressable
+              onPress={isBlocked ? handleUnblock : confirmBlock}
+              className="flex-row items-center gap-3 rounded-2xl px-4 py-3.5 active:bg-surface-2"
+            >
+              <View className="h-9 w-9 items-center justify-center rounded-full bg-surface-2">
+                <UserX size={18} color="#EF4444" strokeWidth={2} />
+              </View>
+              <View className="flex-1">
+                <Text className="text-[15px] font-semibold text-danger">
+                  {isBlocked ? `Unblock @${profile.username}` : `Block @${profile.username}`}
+                </Text>
+                <Text className="mt-0.5 text-xs text-muted">
+                  {isBlocked
+                    ? 'They can see your workouts and follow you again.'
+                    : 'Hide their workouts and stop interactions.'}
+                </Text>
+              </View>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {!isBlocked && (
+        <View className="mb-4 rounded-2xl bg-surface p-4">
+          <View className="flex-row">
+            <HeroStat
+              value={String(streak)}
+              label="Streak"
+              icon={<Flame size={16} color="#F59E0B" strokeWidth={1.75} />}
+            />
+            <HeroStat value={(stats?.workouts ?? 0).toLocaleString()} label="Workouts" />
+            <HeroStat value={String(profile.longest_streak)} label="Best streak" />
+          </View>
+        </View>
+      )}
+
+      {!isBlocked && hiddenByPrivacy && (
         <View className="mb-4 rounded-2xl bg-surface p-4">
           <Text className="text-center text-muted">
             Follow {name} to see their workouts, records, and lifts.
@@ -216,7 +351,7 @@ export default function UserProfileScreen() {
         </View>
       )}
 
-      {stats && stats.workouts > 0 && (
+      {!isBlocked && stats && stats.workouts > 0 && (
         <View className="mb-4 rounded-2xl bg-surface p-4">
           <Text className="mb-3 text-base font-bold text-white">Records</Text>
           {stats.favoriteLift && (
@@ -248,7 +383,7 @@ export default function UserProfileScreen() {
         </View>
       )}
 
-      {stats && stats.bestLifts.length > 0 && (
+      {!isBlocked && stats && stats.bestLifts.length > 0 && (
         <View className="mb-4 rounded-2xl bg-surface p-4">
           <Text className="mb-3 text-base font-bold text-white">
             Best Lifts <Text className="text-xs font-normal text-muted">est. 1RM</Text>
@@ -268,7 +403,7 @@ export default function UserProfileScreen() {
         </View>
       )}
 
-      {stats && stats.recent.length > 0 && (
+      {!isBlocked && stats && stats.recent.length > 0 && (
         <View className="mb-4 rounded-2xl bg-surface p-4">
           <Text className="mb-3 text-base font-bold text-white">Recent Workouts</Text>
           {stats.recent.map((w) => (

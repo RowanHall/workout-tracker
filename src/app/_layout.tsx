@@ -138,6 +138,15 @@ function RootNavigator() {
           }}
         />
         <Stack.Screen
+          name="settings/blocked"
+          options={{
+            headerShown: true,
+            title: 'Blocked Accounts',
+            headerStyle: { backgroundColor: '#151B23' },
+            headerTintColor: '#FFFFFF',
+          }}
+        />
+        <Stack.Screen
           name="history"
           options={{
             headerShown: true,

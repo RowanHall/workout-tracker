@@ -5,12 +5,14 @@ import {
   ChevronRight,
   Crown,
   Download,
+  FileText,
   Globe,
   Scale,
+  Shield,
   User,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
 import { KovaLogo } from '@/components/KovaLogo';
@@ -190,6 +192,20 @@ export default function SettingsHubScreen() {
           label={exporting ? t('settings.row.exportPreparing') : t('settings.row.export')}
           trailing={!isPremium ? <ProBadge /> : undefined}
           onPress={handleExport}
+          last
+        />
+      </Section>
+
+      <Section label="Safety & Legal">
+        <MenuRow
+          icon={<Shield size={18} color="#8B98A9" strokeWidth={1.75} />}
+          label="Blocked accounts"
+          onPress={() => router.push('/settings/blocked')}
+        />
+        <MenuRow
+          icon={<FileText size={18} color="#8B98A9" strokeWidth={1.75} />}
+          label="Terms of Use"
+          onPress={() => Linking.openURL('https://kovafit.ca/terms/')}
           last
         />
       </Section>

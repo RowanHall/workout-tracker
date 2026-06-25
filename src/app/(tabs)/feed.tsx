@@ -155,6 +155,7 @@ export default function FeedScreen() {
             currentUserId={userId ?? ""}
             onToggleCheer={toggleCheer}
             onAddComment={addComment}
+            onBlocked={loadFeed}
           />
         )}
         ListEmptyComponent={

@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -16,6 +17,8 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { MuscleMap } from '@/components/MuscleMap';
 import { useCountUp } from '@/hooks/useCountUp';
 import type { ExerciseMuscle, WorkoutSummary } from '@/lib/types';
+
+const TERMS_URL = 'https://kovafit.ca/terms/';
 
 export type WorkoutVisibility = 'public' | 'private';
 
@@ -98,7 +101,14 @@ export function WorkoutSummaryModal({
               <RecapBlock summary={summary} muscles={muscles} />
             </ScrollView>
 
-            <FooterActions onClose={onClose} onShare={onShare} saving={saving} />
+            {visibility === 'public' && <TermsAgreement />}
+
+            <FooterActions
+              onClose={onClose}
+              onShare={onShare}
+              saving={saving}
+              withTopBorder={visibility !== 'public'}
+            />
           </View>
         </KeyboardAvoidingView>
       </View>
@@ -322,18 +332,38 @@ function RecapBlock({
   );
 }
 
+function TermsAgreement() {
+  return (
+    <View className="border-t border-white/5 px-6 pt-3">
+      <Text className="text-[11px] leading-[16px] text-muted">
+        By posting, you agree to our{' '}
+        <Text
+          className="font-semibold text-primary"
+          onPress={() => Linking.openURL(TERMS_URL)}
+        >
+          Terms of Use
+        </Text>
+        . We have a zero-tolerance policy for objectionable content or abusive
+        behavior. Violations will result in immediate account termination.
+      </Text>
+    </View>
+  );
+}
+
 function FooterActions({
   onClose,
   onShare,
   saving,
+  withTopBorder = true,
 }: {
   onClose: () => void;
   onShare?: () => void;
   saving?: boolean;
+  withTopBorder?: boolean;
 }) {
   return (
     <View
-      className="flex-row gap-2.5 border-t border-white/5 px-6 pb-7 pt-3"
+      className={`flex-row gap-2.5 px-6 pb-7 pt-3 ${withTopBorder ? 'border-t border-white/5' : ''}`}
       style={{ paddingBottom: Platform.OS === 'ios' ? 32 : 20 }}
     >
       {onShare && (

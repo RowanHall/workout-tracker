@@ -3,6 +3,7 @@ import { useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -14,6 +15,8 @@ import {
 import { KovaLogo } from '@/components/KovaLogo';
 import { OAuthButtons } from '@/components/OAuthButtons';
 import { supabase } from '@/lib/supabase';
+
+const TERMS_URL = 'https://kovafit.ca/terms/';
 
 export default function SignUp() {
   const [username, setUsername] = useState('');
@@ -115,6 +118,18 @@ export default function SignUp() {
             {submitting ? 'Creating account…' : 'Create Account'}
           </Text>
         </Pressable>
+
+        <Text className="mt-4 text-center text-xs leading-[18px] text-muted">
+          By posting, you agree to our{' '}
+          <Text
+            className="font-semibold text-primary"
+            onPress={() => Linking.openURL(TERMS_URL)}
+          >
+            Terms of Use
+          </Text>
+          . We have a zero-tolerance policy for objectionable content or abusive
+          behavior. Violations will result in immediate account termination.
+        </Text>
 
         <OAuthButtons />
 
