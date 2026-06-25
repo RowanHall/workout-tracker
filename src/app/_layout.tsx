@@ -5,11 +5,13 @@ import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
 
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
+import { LanguageProvider, useLanguage } from '@/providers/LanguageProvider';
 import { NotificationsManager } from '@/providers/NotificationsManager';
 import { PremiumProvider } from '@/providers/PremiumProvider';
 
 function RootNavigator() {
   const { session, profile, loading } = useAuth();
+  const { t } = useLanguage();
 
   // While the session is set but the profile row hasn't come back yet, hold
   // on the spinner so we don't flash the tab bar before deciding whether to
@@ -76,7 +78,16 @@ function RootNavigator() {
           name="settings/index"
           options={{
             headerShown: true,
-            title: 'Settings',
+            title: t('settings.title'),
+            headerStyle: { backgroundColor: '#151B23' },
+            headerTintColor: '#FFFFFF',
+          }}
+        />
+        <Stack.Screen
+          name="settings/language"
+          options={{
+            headerShown: true,
+            title: t('language.title'),
             headerStyle: { backgroundColor: '#151B23' },
             headerTintColor: '#FFFFFF',
           }}
@@ -103,7 +114,7 @@ function RootNavigator() {
           name="settings/notifications"
           options={{
             headerShown: true,
-            title: 'Notifications',
+            title: t('notifications.title'),
             headerStyle: { backgroundColor: '#151B23' },
             headerTintColor: '#FFFFFF',
           }}
@@ -112,7 +123,7 @@ function RootNavigator() {
           name="settings/body-weight"
           options={{
             headerShown: true,
-            title: 'Body Weight',
+            title: t('settings.row.bodyWeight'),
             headerStyle: { backgroundColor: '#151B23' },
             headerTintColor: '#FFFFFF',
           }}
@@ -200,11 +211,13 @@ function RootNavigator() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <PremiumProvider>
-        <StatusBar style="light" />
-        <RootNavigator />
-      </PremiumProvider>
-    </AuthProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        <PremiumProvider>
+          <StatusBar style="light" />
+          <RootNavigator />
+        </PremiumProvider>
+      </AuthProvider>
+    </LanguageProvider>
   );
 }

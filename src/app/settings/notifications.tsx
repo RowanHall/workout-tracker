@@ -11,9 +11,11 @@ import {
   type ReminderIntensity,
 } from '@/lib/notificationSettings';
 import { useAuth } from '@/providers/AuthProvider';
+import { useLanguage } from '@/providers/LanguageProvider';
 
 export default function NotificationsSettingsScreen() {
   const { profile } = useAuth();
+  const { t } = useLanguage();
 
   const [settings, setSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS);
   const [permGranted, setPermGranted] = useState(false);
@@ -40,11 +42,11 @@ export default function NotificationsSettingsScreen() {
       setPermGranted(granted);
       if (!granted) {
         Alert.alert(
-          'Notifications disabled',
-          'Enable notifications for Kova in your device Settings to get streak reminders.',
+          t('notifications.permission.title'),
+          t('notifications.permission.body'),
           [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Open Settings', onPress: () => Linking.openSettings() },
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('common.openSettings'), onPress: () => Linking.openSettings() },
           ]
         );
         return;
@@ -65,11 +67,11 @@ export default function NotificationsSettingsScreen() {
         <View className="flex-row items-center py-3.5">
           <Bell size={18} color="#8B98A9" strokeWidth={1.75} />
           <View className="ml-3 flex-1">
-            <Text className="text-[15px] font-semibold text-white">Streak reminders</Text>
+            <Text className="text-[15px] font-semibold text-white">{t('notifications.streak.label')}</Text>
             <Text className="mt-0.5 text-xs text-muted">
               {permGranted
-                ? "Local nudges so you don't break your streak."
-                : 'Enable to get streak nudges.'}
+                ? t('notifications.streak.descOn')
+                : t('notifications.streak.descOff')}
             </Text>
           </View>
           <Switch
@@ -85,7 +87,7 @@ export default function NotificationsSettingsScreen() {
         <>
           <View className="px-5 pt-7">
             <Text className="mb-3 text-[11px] font-bold uppercase tracking-[2.5px] text-muted">
-              How pushy?
+              {t('notifications.intensity.label')}
             </Text>
             <View className="flex-row gap-2">
               {(['gentle', 'balanced', 'pushy'] as const).map((opt) => (
@@ -103,24 +105,21 @@ export default function NotificationsSettingsScreen() {
                       settings.intensity === opt ? 'text-background' : 'text-white'
                     }`}
                   >
-                    {opt}
+                    {t(`notifications.intensity.${opt}` as const)}
                   </Text>
                 </Pressable>
               ))}
             </View>
             <Text className="mt-3 text-xs text-muted">
-              {settings.intensity === 'gentle' &&
-                'Only when your streak is at risk, plus milestones and comebacks.'}
-              {settings.intensity === 'balanced' &&
-                'Adds a workout nudge on Mon / Wed / Fri.'}
-              {settings.intensity === 'pushy' &&
-                "Daily workout nudge on days you haven't trained."}
+              {settings.intensity === 'gentle' && t('notifications.intensity.gentleDesc')}
+              {settings.intensity === 'balanced' && t('notifications.intensity.balancedDesc')}
+              {settings.intensity === 'pushy' && t('notifications.intensity.pushyDesc')}
             </Text>
           </View>
 
           <View className="px-5 pt-7">
             <Text className="mb-3 text-[11px] font-bold uppercase tracking-[2.5px] text-muted">
-              Reminder time
+              {t('notifications.time.label')}
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View className="flex-row gap-2">

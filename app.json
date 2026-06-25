@@ -20,7 +20,7 @@
       "package": "com.kova.fitness",
       "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#0B0F14",
+        "backgroundColor": "#22C55E",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"

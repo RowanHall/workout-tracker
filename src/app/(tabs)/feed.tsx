@@ -15,7 +15,7 @@ import { useAuth } from "@/providers/AuthProvider";
 const WELCOME_DISMISSED_KEY = "welcome_banner_dismissed_v1";
 const SUGGESTED_DISMISSED_KEY = "suggested_athletes_dismissed_v1";
 const FOUNDER_USERNAME = "rowan";
-const FOUNDER_EMAIL = "hello@kova.com";
+const FOUNDER_EMAIL = "hello@kovafit.ca";
 
 type FeedMode = "following" | "discover";
 

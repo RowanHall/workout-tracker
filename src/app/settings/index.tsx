@@ -5,6 +5,7 @@ import {
   ChevronRight,
   Crown,
   Download,
+  Globe,
   Scale,
   User,
 } from 'lucide-react-native';
@@ -16,17 +17,21 @@ import { KovaLogo } from '@/components/KovaLogo';
 import { ProBadge } from '@/components/ProBadge';
 import { formatWeight } from '@/lib/format';
 import { exportWorkoutsCsv } from '@/lib/export';
+import { LOCALES } from '@/lib/i18n';
 import { hasPermission } from '@/lib/notifications';
 import { DEFAULT_SETTINGS, loadSettings } from '@/lib/notificationSettings';
 import { supabase } from '@/lib/supabase';
 import type { BodyWeight } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
+import { useLanguage } from '@/providers/LanguageProvider';
 import { usePremium } from '@/providers/PremiumProvider';
 
 export default function SettingsHubScreen() {
   const { session, profile } = useAuth();
   const userId = session?.user.id;
   const { isPremium } = usePremium();
+  const { t, locale } = useLanguage();
+  const currentLanguage = LOCALES.find((l) => l.code === locale)?.name ?? 'English';
 
   const displayName = profile?.display_name ?? profile?.username ?? '';
 
@@ -65,7 +70,7 @@ export default function SettingsHubScreen() {
     try {
       await exportWorkoutsCsv(userId);
     } catch (err: any) {
-      Alert.alert('Export failed', err?.message ?? 'Please try again.');
+      Alert.alert(t('settings.export.failedTitle'), err?.message ?? t('settings.export.failedFallback'));
     } finally {
       setExporting(false);
     }
@@ -98,7 +103,7 @@ export default function SettingsHubScreen() {
             </Text>
           </View>
           <View className="rounded-full bg-primary px-4 py-2">
-            <Text className="text-[13px] font-bold text-background">Unlock</Text>
+            <Text className="text-[13px] font-bold text-background">{t('common.unlock')}</Text>
           </View>
         </Pressable>
       )}
@@ -119,15 +124,15 @@ export default function SettingsHubScreen() {
         )}
       </Pressable>
 
-      <Section label="Account">
+      <Section label={t('settings.section.account')}>
         <MenuRow
           icon={<User size={18} color="#8B98A9" strokeWidth={1.75} />}
-          label="Profile"
+          label={t('settings.row.profile')}
           onPress={() => router.push('/settings/profile')}
         />
         <MenuRow
           icon={<AtSign size={18} color="#8B98A9" strokeWidth={1.75} />}
-          label="Account"
+          label={t('settings.row.account')}
           trailing={
             <Text className="text-[13px] text-muted" numberOfLines={1}>
               {session?.user.email ?? ''}
@@ -137,25 +142,31 @@ export default function SettingsHubScreen() {
         />
         <MenuRow
           icon={<Crown size={18} color="#8B98A9" strokeWidth={1.75} />}
-          label="Manage membership"
-          trailing={isPremium ? <ProBadge /> : <Text className="text-[13px] text-muted">Free</Text>}
+          label={t('settings.row.membership')}
+          trailing={isPremium ? <ProBadge /> : <Text className="text-[13px] text-muted">{t('common.free')}</Text>}
           onPress={() => router.push('/settings/membership')}
           last
         />
       </Section>
 
-      <Section label="Preferences">
+      <Section label={t('settings.section.preferences')}>
         <MenuRow
           icon={<Bell size={18} color="#8B98A9" strokeWidth={1.75} />}
-          label="Notifications"
+          label={t('settings.row.notifications')}
           trailing={
-            <Text className="text-[13px] text-muted">{notifsOn ? 'On' : 'Off'}</Text>
+            <Text className="text-[13px] text-muted">{notifsOn ? t('common.on') : t('common.off')}</Text>
           }
           onPress={() => router.push('/settings/notifications')}
         />
         <MenuRow
+          icon={<Globe size={18} color="#8B98A9" strokeWidth={1.75} />}
+          label={t('settings.row.language')}
+          trailing={<Text className="text-[13px] text-muted">{currentLanguage}</Text>}
+          onPress={() => router.push('/settings/language')}
+        />
+        <MenuRow
           icon={<Scale size={18} color="#8B98A9" strokeWidth={1.75} />}
-          label="Body weight"
+          label={t('settings.row.bodyWeight')}
           trailing={
             latestWeight != null ? (
               <Text
@@ -165,7 +176,7 @@ export default function SettingsHubScreen() {
                 {formatWeight(latestWeight)} lbs
               </Text>
             ) : (
-              <Text className="text-[13px] text-muted">Not set</Text>
+              <Text className="text-[13px] text-muted">{t('common.notSet')}</Text>
             )
           }
           onPress={() => router.push('/settings/body-weight')}
@@ -173,10 +184,10 @@ export default function SettingsHubScreen() {
         />
       </Section>
 
-      <Section label="Data">
+      <Section label={t('settings.section.data')}>
         <MenuRow
           icon={<Download size={18} color="#8B98A9" strokeWidth={1.75} />}
-          label={exporting ? 'Preparing your file…' : 'Export workouts'}
+          label={exporting ? t('settings.row.exportPreparing') : t('settings.row.export')}
           trailing={!isPremium ? <ProBadge /> : undefined}
           onPress={handleExport}
           last
