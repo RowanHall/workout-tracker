@@ -13,7 +13,11 @@
       "usesAppleSignIn": true,
       "supportsTablet": false,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": [
+          "remote-notification",
+          "fetch"
+        ]
       }
     },
     "android": {
@@ -26,7 +30,19 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "permissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.INTERNET",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.USE_EXACT_ALARM",
+        "android.permission.VIBRATE",
+        "android.permission.WAKE_LOCK",
+        "android.permission.RECEIVE_BOOT_COMPLETED"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ]
     },
     "web": {
@@ -54,7 +70,9 @@
       [
         "expo-notifications",
         {
-          "color": "#22C55E"
+          "color": "#22C55E",
+          "defaultChannel": "default",
+          "enableBackgroundRemoteNotifications": true
         }
       ],
       "@react-native-community/datetimepicker"
