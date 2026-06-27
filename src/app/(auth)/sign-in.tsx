@@ -13,6 +13,7 @@ import {
 
 import { KovaLogo } from '@/components/KovaLogo';
 import { OAuthButtons } from '@/components/OAuthButtons';
+import { redirectTo } from '@/lib/oauth';
 import { supabase } from '@/lib/supabase';
 
 export default function SignIn() {
@@ -25,7 +26,36 @@ export default function SignIn() {
     setSubmitting(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setSubmitting(false);
-    if (error) Alert.alert('Sign in failed', error.message);
+    if (!error) return;
+    const notConfirmed =
+      error.message.toLowerCase().includes('not confirmed') ||
+      (error as { code?: string }).code === 'email_not_confirmed';
+    if (notConfirmed) {
+      Alert.alert(
+        'Email not confirmed',
+        'Check your inbox for the confirmation link, or resend it.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Resend',
+            onPress: async () => {
+              const { error: resendError } = await supabase.auth.resend({
+                type: 'signup',
+                email,
+                options: { emailRedirectTo: redirectTo },
+              });
+              if (resendError) {
+                Alert.alert('Could not resend', resendError.message);
+              } else {
+                Alert.alert('Sent', 'Check your email for the confirmation link.');
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
+    Alert.alert('Sign in failed', error.message);
   }
 
   return (

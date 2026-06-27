@@ -14,6 +14,7 @@ import {
 
 import { KovaLogo } from '@/components/KovaLogo';
 import { OAuthButtons } from '@/components/OAuthButtons';
+import { redirectTo } from '@/lib/oauth';
 import { supabase } from '@/lib/supabase';
 
 const TERMS_URL = 'https://kovafit.ca/terms/';
@@ -43,6 +44,7 @@ export default function SignUp() {
       email,
       password,
       options: {
+        emailRedirectTo: redirectTo,
         data: {
           username: trimmed,
           display_name: displayName.trim() || trimmed,

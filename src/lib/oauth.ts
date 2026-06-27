@@ -12,7 +12,7 @@ export type OAuthProvider = 'apple' | 'google' | 'github';
 
 // Where the provider sends the user back to. In a dev/standalone build this is
 // the app's custom scheme (kova://); in Expo Go it's the exp:// dev URL.
-const redirectTo = makeRedirectUri();
+export const redirectTo = makeRedirectUri();
 
 /**
  * Runs the full OAuth flow for a provider: asks Supabase for the provider's
@@ -91,7 +91,7 @@ export async function signInWithAppleNative() {
   return data.session;
 }
 
-async function createSessionFromUrl(url: string) {
+export async function createSessionFromUrl(url: string) {
   const { params, errorCode } = QueryParams.getQueryParams(url);
   if (errorCode) throw new Error(errorCode);
   if (params.error) throw new Error(params.error_description || params.error);

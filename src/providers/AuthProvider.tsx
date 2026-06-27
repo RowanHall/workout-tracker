@@ -1,4 +1,5 @@
 import type { Session, User } from '@supabase/supabase-js';
+import * as Linking from 'expo-linking';
 import {
   createContext,
   useCallback,
@@ -8,6 +9,7 @@ import {
   type PropsWithChildren,
 } from 'react';
 
+import { createSessionFromUrl } from '@/lib/oauth';
 import { supabase } from '@/lib/supabase';
 import type { Profile } from '@/lib/types';
 
@@ -83,7 +85,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
     });
-    return () => sub.subscription.unsubscribe();
+
+    // Handle deep links from email confirmation / password reset / OAuth callbacks
+    // opened outside the in-app browser (e.g. tapping the confirm link in Mail).
+    const handleUrl = (url: string | null) => {
+      if (url) createSessionFromUrl(url).catch(() => {});
+    };
+    Linking.getInitialURL().then(handleUrl);
+    const linkSub = Linking.addEventListener('url', ({ url }) => handleUrl(url));
+
+    return () => {
+      sub.subscription.unsubscribe();
+      linkSub.remove();
+    };
   }, []);
 
   useEffect(() => {
