@@ -8,7 +8,7 @@ import {
   useState,
   type PropsWithChildren,
 } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import Purchases, {
   LOG_LEVEL,
   type CustomerInfo,
@@ -75,6 +75,22 @@ export function PremiumProvider({ children }: PropsWithChildren) {
   const pendingUserIdRef = useRef<string | undefined>(undefined);
   const hasPendingRef = useRef(false);
 
+  // Force-fetch the latest entitlement state from RevenueCat, bypassing the
+  // in-memory cache. We hit this any time we suspect the cached customerInfo
+  // might be stale (foreground, post-purchase, post-identify) — TestFlight
+  // purchases in particular have shown the entitlement missing from the
+  // immediate purchase response and only landing on a subsequent fetch.
+  const refreshCustomerInfo = useCallback(async () => {
+    if (!PURCHASES_ENABLED || !configuredRef.current) return;
+    try {
+      await Purchases.invalidateCustomerInfoCache();
+      const info = await Purchases.getCustomerInfo();
+      setIsPremium(hasPremium(info));
+    } catch {
+      // Network blip — state stays as-is and we'll try again on the next event.
+    }
+  }, []);
+
   const identify = useCallback(async (userId: string | undefined) => {
     if (!PURCHASES_ENABLED) return;
     if (!configuredRef.current) {
@@ -86,6 +102,9 @@ export function PremiumProvider({ children }: PropsWithChildren) {
       if (userId) {
         const { customerInfo } = await Purchases.logIn(userId);
         setIsPremium(hasPremium(customerInfo));
+        // logIn can return the previously-cached anonymous customerInfo;
+        // force a fresh fetch so a real entitlement isn't masked by cache.
+        refreshCustomerInfo();
       } else {
         await Purchases.logOut();
         setIsPremium(false);
@@ -93,7 +112,7 @@ export function PremiumProvider({ children }: PropsWithChildren) {
     } catch {
       // Ignore — entitlement state will refresh on the next app open.
     }
-  }, []);
+  }, [refreshCustomerInfo]);
 
   // Configure the SDK once and load the current entitlement + offering.
   useEffect(() => {
@@ -125,11 +144,21 @@ export function PremiumProvider({ children }: PropsWithChildren) {
 
     const listener = (info: CustomerInfo) => setIsPremium(hasPremium(info));
     Purchases.addCustomerInfoUpdateListener(listener);
+
+    // Re-check entitlement when the app returns to the foreground. Users
+    // commonly background the app during the StoreKit flow or to manage
+    // their subscription in the App Store, and the update listener doesn't
+    // reliably fire for changes that happened while the app was suspended.
+    const appStateSub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refreshCustomerInfo();
+    });
+
     return () => {
       cancelled = true;
       Purchases.removeCustomerInfoUpdateListener(listener);
+      appStateSub.remove();
     };
-  }, [identify]);
+  }, [identify, refreshCustomerInfo]);
 
   // Tie purchases to the Supabase user so entitlements follow the account
   // across devices and reinstalls.
@@ -153,7 +182,20 @@ export function PremiumProvider({ children }: PropsWithChildren) {
 
   const purchase = useCallback(async (pkg: PurchasesPackage) => {
     const { customerInfo } = await Purchases.purchasePackage(pkg);
-    const ok = hasPremium(customerInfo);
+    let ok = hasPremium(customerInfo);
+    if (!ok) {
+      // The StoreKit transaction can complete before RevenueCat's backend
+      // has finished posting the entitlement. Force a fresh fetch so the
+      // user isn't stuck behind the paywall after a successful purchase.
+      try {
+        await Purchases.invalidateCustomerInfoCache();
+        const fresh = await Purchases.getCustomerInfo();
+        ok = hasPremium(fresh);
+      } catch {
+        // Fall through — if the refresh fails, ok stays false and the caller
+        // can offer Restore.
+      }
+    }
     setIsPremium(ok);
     return ok;
   }, []);
