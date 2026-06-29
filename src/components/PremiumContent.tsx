@@ -91,7 +91,13 @@ export function PremiumContent() {
     .map((type) => realPackages.find((p) => p.packageType === type))
     .filter((p): p is PurchasesPackage => !!p);
   const sourcePackages = orderedReal.length > 0 ? orderedReal : realPackages;
-  const displayPackages = sourcePackages.length > 0 ? sourcePackages : MOCK_PACKAGES;
+  // Only fall through to MOCK_PACKAGES when purchases aren't available at all
+  // (Expo Go / no API key) so the layout has something to render. In real
+  // builds we wait for the real offering — otherwise users briefly see fake
+  // USD-looking prices before StoreKit returns localized ones.
+  const showLoading = available && sourcePackages.length === 0;
+  const displayPackages =
+    sourcePackages.length > 0 ? sourcePackages : available ? [] : MOCK_PACKAGES;
 
   const annual = displayPackages.find((p) => p.packageType === 'ANNUAL');
   const monthly = displayPackages.find((p) => p.packageType === 'MONTHLY');
@@ -215,22 +221,24 @@ export function PremiumContent() {
         ) : (
           <>
             <View className="flex-row gap-2.5 pt-2">
-              {displayPackages.map((pkg) => (
-                <PlanCard
-                  key={pkg.identifier}
-                  pkg={pkg}
-                  isActive={active?.identifier === pkg.identifier}
-                  savePct={pkg.packageType === 'ANNUAL' ? savePct : null}
-                  onPress={() => setSelected(pkg)}
-                />
-              ))}
+              {showLoading
+                ? PLAN_ORDER.map((type) => <PlanCardSkeleton key={type} />)
+                : displayPackages.map((pkg) => (
+                    <PlanCard
+                      key={pkg.identifier}
+                      pkg={pkg}
+                      isActive={active?.identifier === pkg.identifier}
+                      savePct={pkg.packageType === 'ANNUAL' ? savePct : null}
+                      onPress={() => setSelected(pkg)}
+                    />
+                  ))}
             </View>
             <Pressable
               className="mt-4 items-center rounded-2xl bg-accent py-4 active:opacity-80 disabled:opacity-50"
-              disabled={busy || !active || !ready}
+              disabled={busy || !active || !ready || showLoading}
               onPress={handleSubscribe}
             >
-              {busy || !ready ? (
+              {busy || !ready || showLoading ? (
                 <ActivityIndicator color="#0B0F14" />
               ) : (
                 <Text className="text-base font-extrabold text-background">
@@ -325,6 +333,16 @@ function PlanCard({
       </Text>
       <Text className="mt-0.5 text-center text-[11px] text-muted">{billLabel(pkg)}</Text>
     </Pressable>
+  );
+}
+
+function PlanCardSkeleton() {
+  return (
+    <View className="flex-1 rounded-2xl border border-white/10 bg-surface p-3.5">
+      <View className="mx-auto h-3 w-12 rounded bg-white/10" />
+      <View className="mx-auto mt-3 h-5 w-16 rounded bg-white/10" />
+      <View className="mx-auto mt-2 h-2.5 w-20 rounded bg-white/5" />
+    </View>
   );
 }
 
