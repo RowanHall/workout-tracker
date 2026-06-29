@@ -757,7 +757,7 @@ function ExerciseCard({
         )}
       </View>
 
-      {entry.sets.length > 0 && (
+      {(entry.sets.length > 0 || draft !== null) && (
         <View className="mb-2 flex-row items-center px-3 pb-1">
           <Text className="w-9 text-[10px] font-semibold uppercase tracking-wider text-muted">
             Set
