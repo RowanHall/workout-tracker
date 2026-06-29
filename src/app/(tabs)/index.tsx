@@ -163,6 +163,7 @@ export default function ProfileScreen() {
               style={{ left: 34, top: 0, bottom: 0 }}
             >
               <Text
+                numberOfLines={1}
                 style={{
                   fontSize: 20,
                   fontWeight: "900",
@@ -170,6 +171,7 @@ export default function ProfileScreen() {
                   color: "#FFFFFF",
                   letterSpacing: -0.8,
                   fontVariant: ["tabular-nums"],
+                  paddingRight: 6,
                 }}
               >
                 {streak}
