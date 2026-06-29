@@ -88,10 +88,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     // Handle deep links from email confirmation / password reset / OAuth callbacks
     // opened outside the in-app browser (e.g. tapping the confirm link in Mail).
+    // Only act on URLs that actually carry Supabase auth params — TestFlight
+    // and the OS occasionally hand the app unrelated launch URLs, and parsing
+    // those through exchangeCodeForSession produced an auth-state thrash on
+    // cold start.
     const handleUrl = (url: string | null) => {
-      if (url) createSessionFromUrl(url).catch(() => {});
+      if (!url) return;
+      if (!/[?&#](code|access_token|refresh_token|error)=/.test(url)) return;
+      createSessionFromUrl(url).catch(() => {});
     };
-    Linking.getInitialURL().then(handleUrl);
+    Linking.getInitialURL().then(handleUrl).catch(() => {});
     const linkSub = Linking.addEventListener('url', ({ url }) => handleUrl(url));
 
     return () => {
