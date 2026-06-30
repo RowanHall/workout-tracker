@@ -18,9 +18,10 @@ import Purchases, {
 
 import { supabase } from '@/lib/supabase';
 
-/** The RevenueCat entitlement that unlocks Kova Pro. The id stays `premium`
- *  to match the existing RevenueCat dashboard configuration. */
-const ENTITLEMENT_ID = 'premium';
+/** The RevenueCat entitlement identifier that unlocks Kova Pro. Must match
+ *  the entitlement's Identifier in the RevenueCat dashboard exactly (spaces
+ *  and case included) — it's the key into `customerInfo.entitlements.active`. */
+const ENTITLEMENT_ID = 'Kova Pro';
 
 // Native in-app purchases need a custom dev/standalone build; the module isn't
 // present in Expo Go, so we never touch it there.
