@@ -3,7 +3,6 @@ import { useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -13,11 +12,10 @@ import {
 } from 'react-native';
 
 import { KovaLogo } from '@/components/KovaLogo';
+import { LegalDisclaimer } from '@/components/LegalDisclaimer';
 import { OAuthButtons } from '@/components/OAuthButtons';
 import { redirectTo } from '@/lib/oauth';
 import { supabase } from '@/lib/supabase';
-
-const TERMS_URL = 'https://kovafit.ca/terms/';
 
 export default function SignUp() {
   const [username, setUsername] = useState('');
@@ -121,17 +119,13 @@ export default function SignUp() {
           </Text>
         </Pressable>
 
-        <Text className="mt-4 text-center text-xs leading-[18px] text-muted">
-          By posting, you agree to our{' '}
-          <Text
-            className="font-semibold text-primary"
-            onPress={() => Linking.openURL(TERMS_URL)}
-          >
-            Terms of Use
-          </Text>
-          . We have a zero-tolerance policy for objectionable content or abusive
-          behavior. Violations will result in immediate account termination.
-        </Text>
+        <View className="mt-4">
+          <LegalDisclaimer action="creating an account">
+            {' '}We have a zero-tolerance policy for objectionable content or
+            abusive behavior. Violations will result in immediate account
+            termination.
+          </LegalDisclaimer>
+        </View>
 
         <OAuthButtons />
 
