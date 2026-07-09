@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { KovaLogo } from '@/components/KovaLogo';
+import { LegalDisclaimer } from '@/components/LegalDisclaimer';
 import { OAuthButtons } from '@/components/OAuthButtons';
 import { redirectTo } from '@/lib/oauth';
 import { supabase } from '@/lib/supabase';
@@ -101,6 +102,10 @@ export default function SignIn() {
             {submitting ? 'Signing in…' : 'Sign In'}
           </Text>
         </Pressable>
+
+        <View className="mt-4">
+          <LegalDisclaimer action="signing in" />
+        </View>
 
         <OAuthButtons />
 
