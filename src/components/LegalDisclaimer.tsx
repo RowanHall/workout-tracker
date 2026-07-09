@@ -1,8 +1,8 @@
-import { Linking, Text } from 'react-native';
-import type { ReactNode } from 'react';
+import { Linking, Text } from "react-native";
+import type { ReactNode } from "react";
 
-const TERMS_URL = 'https://kovafit.ca/terms/';
-const PRIVACY_URL = 'https://rowanhall.github.io/workout-tracker/';
+const TERMS_URL = "https://kovafit.ca/terms/";
+const PRIVACY_URL = "https://kovafit.ca/privacy/";
 
 /**
  * Terms + privacy consent line shown on every entry into the app (welcome,
@@ -10,7 +10,7 @@ const PRIVACY_URL = 'https://rowanhall.github.io/workout-tracker/';
  * this, so it must be visible before any credential entry.
  */
 export function LegalDisclaimer({
-  action = 'continuing',
+  action = "continuing",
   children,
 }: {
   action?: string;
@@ -18,18 +18,12 @@ export function LegalDisclaimer({
 }) {
   return (
     <Text className="text-center text-xs leading-[18px] text-muted">
-      By {action}, you agree to our{' '}
-      <Text
-        className="font-semibold text-primary"
-        onPress={() => Linking.openURL(TERMS_URL)}
-      >
+      By {action}, you agree to our{" "}
+      <Text className="font-semibold text-primary" onPress={() => Linking.openURL(TERMS_URL)}>
         Terms of Use
-      </Text>{' '}
-      and{' '}
-      <Text
-        className="font-semibold text-primary"
-        onPress={() => Linking.openURL(PRIVACY_URL)}
-      >
+      </Text>{" "}
+      and{" "}
+      <Text className="font-semibold text-primary" onPress={() => Linking.openURL(PRIVACY_URL)}>
         Privacy Policy
       </Text>
       .{children}
