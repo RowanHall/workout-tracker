@@ -17,7 +17,12 @@ import { useAuth } from '@/providers/AuthProvider';
 
 interface DetailSet extends WorkoutSet {
   created_at: string;
-  exercises: { name: string; muscle_group: MuscleGroup; muscles: ExerciseMuscle[] };
+  exercises: {
+    name: string;
+    muscle_group: MuscleGroup;
+    muscles: ExerciseMuscle[];
+    is_bodyweight: boolean;
+  };
 }
 
 interface WorkoutDetail extends Workout {
@@ -88,7 +93,7 @@ export default function WorkoutDetailScreen() {
       .select(
         `*,
          profiles (username, display_name, avatar_url),
-         workout_sets (*, exercises (name, muscle_group, muscles)),
+         workout_sets (*, exercises (name, muscle_group, muscles, is_bodyweight)),
          workout_photos (photo_url, position)`
       )
       .eq('id', id)
@@ -367,6 +372,12 @@ function ExerciseBlock({
   );
 }
 
+function setLoadLabel(set: DetailSet): string {
+  const weight = Number(set.weight);
+  if (!set.exercises.is_bodyweight) return `${weight.toLocaleString()} lbs`;
+  return weight === 0 ? 'BW' : `BW +${weight.toLocaleString()} lbs`;
+}
+
 function SetLine({ set }: { set: DetailSet }) {
   return (
     <View className="flex-row items-center border-b border-white/5 py-2.5">
@@ -380,7 +391,7 @@ function SetLine({ set }: { set: DetailSet }) {
         className="flex-1 text-[15px] font-semibold text-white"
         style={{ fontVariant: ['tabular-nums'] }}
       >
-        {Number(set.weight).toLocaleString()} lbs × {set.reps}
+        {setLoadLabel(set)} × {set.reps}
       </Text>
       {set.is_pr && (
         <View className="flex-row items-center gap-1 rounded-full bg-accent/15 px-2 py-0.5">

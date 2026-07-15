@@ -6,6 +6,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Switch,
   Text,
   TextInput,
   View,
@@ -59,11 +60,13 @@ interface Props {
 export function NewExerciseModal({ visible, userId, onClose, onCreated }: Props) {
   const [name, setName] = useState('');
   const [group, setGroup] = useState<MuscleGroup | null>(null);
+  const [isBodyweight, setIsBodyweight] = useState(false);
   const [saving, setSaving] = useState(false);
 
   function reset() {
     setName('');
     setGroup(null);
+    setIsBodyweight(false);
     setSaving(false);
   }
 
@@ -87,6 +90,7 @@ export function NewExerciseModal({ visible, userId, onClose, onCreated }: Props)
         muscle_group: group,
         muscles: DEFAULT_MUSCLES[group],
         is_custom: true,
+        is_bodyweight: isBodyweight,
         created_by: userId,
       })
       .select('*')
@@ -188,6 +192,28 @@ export function NewExerciseModal({ visible, userId, onClose, onCreated }: Props)
               );
             })}
           </View>
+
+          <Text className="mb-3 mt-7 text-[11px] font-bold uppercase tracking-[2.5px] text-muted">
+            Logging
+          </Text>
+          <Pressable
+            className="flex-row items-center justify-between border-b border-white/10 pb-3"
+            onPress={() => setIsBodyweight((v) => !v)}
+          >
+            <View className="flex-1 pr-4">
+              <Text className="text-[15px] text-white">Bodyweight movement</Text>
+              <Text className="mt-0.5 text-xs leading-4 text-muted">
+                Sets default to BW — your logged body weight. Entering a weight
+                counts as added load (+45).
+              </Text>
+            </View>
+            <Switch
+              value={isBodyweight}
+              onValueChange={setIsBodyweight}
+              trackColor={{ false: '#1E2630', true: '#22C55E' }}
+              thumbColor="#FFFFFF"
+            />
+          </Pressable>
 
           <Text className="mt-6 text-xs leading-5 text-muted">
             Your custom exercise will show up alongside the built-in library and be

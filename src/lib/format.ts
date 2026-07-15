@@ -7,6 +7,23 @@ export function formatWeight(weight: number): string {
   return Number.isInteger(weight) ? String(weight) : weight.toFixed(1);
 }
 
+/** Set weight for display. Bodyweight movements store only the added load,
+ *  so 0 reads as "BW" and 45 as "+45"; everything else is the plain number. */
+export function formatSetWeight(weight: number, isBodyweight: boolean): string {
+  if (!isBodyweight) return formatWeight(weight);
+  return weight === 0 ? 'BW' : `+${formatWeight(weight)}`;
+}
+
+/** Parse a weight input into the stored value, or null when invalid. For
+ *  bodyweight movements an empty field or "BW" means no added load (0), and
+ *  a "+" prefix is tolerated so "+45" round-trips from formatSetWeight. */
+export function parseSetWeightInput(text: string, isBodyweight: boolean): number | null {
+  const trimmed = text.trim().replace(/^\+/, '');
+  if (isBodyweight && (trimmed === '' || trimmed.toUpperCase() === 'BW')) return 0;
+  const n = parseFloat(trimmed);
+  return Number.isNaN(n) || n < 0 ? null : n;
+}
+
 export function formatDuration(startIso: string, endIso: string): string {
   const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
   const mins = Math.max(1, Math.round(ms / 60000));

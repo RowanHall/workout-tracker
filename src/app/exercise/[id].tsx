@@ -76,19 +76,38 @@ export default function ExerciseDetailScreen() {
     let cancelled = false;
 
     async function load() {
-      const [exerciseRes, setsRes] = await Promise.all([
-        supabase.from('exercises').select('name, muscle_group').eq('id', id).maybeSingle(),
+      const [exerciseRes, setsRes, bwRes] = await Promise.all([
+        supabase
+          .from('exercises')
+          .select('name, muscle_group, is_bodyweight')
+          .eq('id', id)
+          .maybeSingle(),
         supabase
           .from('workout_sets')
           .select('weight, reps, workouts!inner (id, ended_at, user_id)')
           .eq('exercise_id', id)
           .eq('workouts.user_id', userId!)
           .not('workouts.ended_at', 'is', null),
+        supabase
+          .from('body_weights')
+          .select('weight')
+          .eq('user_id', userId!)
+          .order('recorded_on', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
       ]);
       if (cancelled) return;
 
-      const exercise = exerciseRes.data as { name: string; muscle_group: string } | null;
+      const exercise = exerciseRes.data as {
+        name: string;
+        muscle_group: string;
+        is_bodyweight: boolean;
+      } | null;
       const sets = (setsRes.data ?? []) as unknown as SetRow[];
+      // Bodyweight movements store only the added load; fold the user's
+      // latest body weight into every set so the charts reflect real load.
+      const bwOffset =
+        exercise?.is_bodyweight && bwRes.data ? Number(bwRes.data.weight) : 0;
 
       if (!exercise) {
         setData(null);
@@ -101,7 +120,7 @@ export default function ExerciseDetailScreen() {
       let recordedMax = 0;
       for (const s of sets) {
         if (!s.workouts) continue;
-        const weight = Number(s.weight);
+        const weight = Number(s.weight) + bwOffset;
         const reps = s.reps;
         const e1rm = estimatedOneRepMax(weight, reps);
         const setVolume = weight * reps;

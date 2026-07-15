@@ -69,6 +69,9 @@ export interface Exercise {
   muscle_group: MuscleGroup;
   muscles: ExerciseMuscle[];
   is_custom: boolean;
+  /** Bodyweight movement (pull-ups, dips, …). Set weights store only the
+   *  ADDED load — 0 means strict bodyweight, shown as "BW". */
+  is_bodyweight: boolean;
 }
 
 export interface Workout {

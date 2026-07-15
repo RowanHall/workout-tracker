@@ -29,7 +29,12 @@ import {
   type WorkoutVisibility,
 } from '@/components/WorkoutSummaryModal';
 import { useActiveWorkout, type WorkoutEntry } from '@/hooks/useActiveWorkout';
-import { dateKey, formatDuration, formatWeight } from '@/lib/format';
+import {
+  dateKey,
+  formatDuration,
+  formatSetWeight,
+  parseSetWeightInput,
+} from '@/lib/format';
 import { mergeMuscles } from '@/lib/muscles';
 import { fireMilestoneIfDue, resetMilestoneTracker } from '@/lib/notifications';
 import { FREE_ROUTINE_LIMIT } from '@/lib/limits';
@@ -73,6 +78,21 @@ export default function WorkoutScreen() {
   const [savingSummary, setSavingSummary] = useState(false);
   const [routines, setRoutines] = useState<{ id: string; title: string; exerciseCount: number }[]>([]);
   const [startingRoutineId, setStartingRoutineId] = useState<string | null>(null);
+  // Latest logged body weight (lbs). Bodyweight exercises count it toward the
+  // live volume preview, matching what finish_workout does server-side.
+  const [bodyWeight, setBodyWeight] = useState(0);
+
+  useEffect(() => {
+    if (!session?.user.id) return;
+    supabase
+      .from('body_weights')
+      .select('weight')
+      .eq('user_id', session.user.id)
+      .order('recorded_on', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setBodyWeight(data ? Number(data.weight) : 0));
+  }, [session?.user.id]);
 
   const loadWeek = useCallback(async () => {
     if (!session?.user.id) return;
@@ -435,7 +455,13 @@ export default function WorkoutScreen() {
 
   const totalSets = entries.reduce((n, e) => n + e.sets.length, 0);
   const totalVolume = entries.reduce(
-    (v, e) => v + e.sets.reduce((sum, set) => sum + set.weight * set.reps, 0),
+    (v, e) =>
+      v +
+      e.sets.reduce(
+        (sum, set) =>
+          sum + (Number(set.weight) + (e.exercise.is_bodyweight ? bodyWeight : 0)) * set.reps,
+        0
+      ),
     0
   );
 
@@ -745,11 +771,15 @@ function ExerciseCard({
     setDraft({ weight: '', reps: '' });
   }
 
+  const isBodyweight = entry.exercise.is_bodyweight;
+
   async function commitDraft() {
     if (!draft || committing) return;
-    const w = parseFloat(draft.weight);
+    // For bodyweight movements an empty weight is valid: it commits as 0
+    // added load, i.e. a plain bodyweight set.
+    const w = parseSetWeightInput(draft.weight, isBodyweight);
     const r = parseInt(draft.reps, 10);
-    if (Number.isNaN(w) || w < 0) return;
+    if (w === null) return;
     if (Number.isNaN(r) || r <= 0) return;
     setCommitting(true);
     try {
@@ -807,6 +837,7 @@ function ExerciseCard({
         <SetRow
           key={set.id}
           set={set}
+          isBodyweight={isBodyweight}
           onUpdate={(patch) => onUpdateSet(set.id, patch)}
           onDelete={() => onDeleteSet(set.id)}
         />
@@ -815,6 +846,7 @@ function ExerciseCard({
       {draft && (
         <DraftSetRow
           setNumber={entry.sets.length + 1}
+          isBodyweight={isBodyweight}
           suggestion={suggestion}
           draft={draft}
           onChange={setDraft}
@@ -837,6 +869,7 @@ function ExerciseCard({
 
 function DraftSetRow({
   setNumber,
+  isBodyweight,
   suggestion,
   draft,
   onChange,
@@ -844,13 +877,18 @@ function DraftSetRow({
   onRemove,
 }: {
   setNumber: number;
+  isBodyweight: boolean;
   suggestion: { weight: number; reps: number } | null;
   draft: { weight: string; reps: string };
   onChange: (next: { weight: string; reps: string }) => void;
   onCommit: () => Promise<void>;
   onRemove: () => void;
 }) {
-  const weightPlaceholder = suggestion ? formatWeight(suggestion.weight) : '';
+  const weightPlaceholder = suggestion
+    ? formatSetWeight(suggestion.weight, isBodyweight)
+    : isBodyweight
+      ? 'BW'
+      : '';
   const repsPlaceholder = suggestion ? String(suggestion.reps) : '';
   return (
     <View className="mb-1.5 flex-row items-center rounded-xl border border-primary-dim/40 bg-surface-2 px-3 py-2">
@@ -888,36 +926,39 @@ function DraftSetRow({
 
 function SetRow({
   set,
+  isBodyweight,
   onUpdate,
   onDelete,
 }: {
   set: WorkoutSet;
+  isBodyweight: boolean;
   onUpdate: (patch: { weight?: number; reps?: number }) => Promise<void>;
   onDelete: () => void;
 }) {
-  const [weightDraft, setWeightDraft] = useState(formatWeight(Number(set.weight)));
+  const [weightDraft, setWeightDraft] = useState(
+    formatSetWeight(Number(set.weight), isBodyweight)
+  );
   const [repsDraft, setRepsDraft] = useState(String(set.reps));
 
   // Reflect external updates (other tabs, undo, etc.) back into the inputs.
   useEffect(() => {
-    setWeightDraft(formatWeight(Number(set.weight)));
-  }, [set.weight]);
+    setWeightDraft(formatSetWeight(Number(set.weight), isBodyweight));
+  }, [set.weight, isBodyweight]);
   useEffect(() => {
     setRepsDraft(String(set.reps));
   }, [set.reps]);
 
   async function commitWeight() {
-    const next = parseFloat(weightDraft);
-    if (Number.isNaN(next) || next < 0) {
-      setWeightDraft(formatWeight(Number(set.weight)));
+    const next = parseSetWeightInput(weightDraft, isBodyweight);
+    if (next === null || next === Number(set.weight)) {
+      setWeightDraft(formatSetWeight(Number(set.weight), isBodyweight));
       return;
     }
-    if (next === Number(set.weight)) return;
     try {
       await onUpdate({ weight: next });
     } catch (err: any) {
       Alert.alert('Could not save', err.message);
-      setWeightDraft(formatWeight(Number(set.weight)));
+      setWeightDraft(formatSetWeight(Number(set.weight), isBodyweight));
     }
   }
 

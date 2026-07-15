@@ -91,6 +91,7 @@ Header card → **photo carousel** (full-width 4:3, edge-to-edge inside a rounde
 
 ## Data layer
 
+- Exercises flagged `is_bodyweight` (pull-ups, dips, …) store only the **added** load in set weights: `0` renders as `BW`, `45` as `+45`. Effective load = latest `body_weights` entry + added load; `finish_workout` applies this server-side for volume/PRs, and clients mirror it (`formatSetWeight` / `parseSetWeightInput` in `src/lib/format.ts`).
 - Workouts have `visibility` (`'public' | 'private'`). Private workouts are hidden from followers via RLS; the owner always sees them.
 - Workout photos live in the `workout-photos` storage bucket (public, namespaced by user id) and are joined via `workout_photos` rows on the workout.
 - Storage uploads use `base64-arraybuffer.decode` + `supabase.storage.from(...).upload(path, decoded, { contentType: 'image/jpeg' })`, mirroring the avatar upload pattern in Settings.

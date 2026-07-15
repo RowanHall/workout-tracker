@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ExercisePicker } from '@/components/ExercisePicker';
+import { formatSetWeight, parseSetWeightInput } from '@/lib/format';
 import { FREE_ROUTINE_LIMIT } from '@/lib/limits';
 import { supabase } from '@/lib/supabase';
 import type { Exercise } from '@/lib/types';
@@ -80,7 +81,7 @@ export default function RoutineEditorScreen() {
               .slice()
               .sort((a, b) => a.set_number - b.set_number)
               .map((s) => ({
-                weight: String(Number(s.weight)),
+                weight: formatSetWeight(Number(s.weight), re.exercises.is_bodyweight),
                 reps: String(s.reps),
               })),
           }))
@@ -164,9 +165,10 @@ export default function RoutineEditorScreen() {
         const wStr = s.weight.trim();
         const rStr = s.reps.trim();
         if (!wStr && !rStr) continue;
-        const w = parseFloat(wStr);
+        // Bodyweight movements accept an empty weight / "BW" as 0 added load.
+        const w = parseSetWeightInput(wStr, ex.exercise.is_bodyweight);
         const r = parseInt(rStr, 10);
-        if (Number.isNaN(w) || w < 0 || Number.isNaN(r) || r <= 0) {
+        if (w === null || Number.isNaN(r) || r <= 0) {
           Alert.alert(
             'Invalid set',
             `Set ${i + 1} of ${ex.exercise.name} needs a weight and reps, or remove it.`
@@ -414,7 +416,7 @@ function RoutineExerciseCard({
               className="w-16 rounded-md bg-surface px-2 py-2 text-center text-base font-semibold text-white"
               value={set.weight}
               onChangeText={(t) => onUpdateSet(i, { weight: t })}
-              placeholder="lbs"
+              placeholder={draft.exercise.is_bodyweight ? 'BW' : 'lbs'}
               placeholderTextColor="#16803C"
               keyboardType="decimal-pad"
               selectTextOnFocus
