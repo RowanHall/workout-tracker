@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -53,15 +53,37 @@ function label(group: MuscleGroup): string {
 interface Props {
   visible: boolean;
   userId: string | undefined;
+  /** When set, the modal edits this custom exercise instead of creating one. */
+  exercise?: Exercise | null;
   onClose: () => void;
-  onCreated: (exercise: Exercise) => void;
+  onCreated?: (exercise: Exercise) => void;
+  onUpdated?: (exercise: Exercise) => void;
+  onDeleted?: () => void;
 }
 
-export function NewExerciseModal({ visible, userId, onClose, onCreated }: Props) {
+export function NewExerciseModal({
+  visible,
+  userId,
+  exercise,
+  onClose,
+  onCreated,
+  onUpdated,
+  onDeleted,
+}: Props) {
   const [name, setName] = useState('');
   const [group, setGroup] = useState<MuscleGroup | null>(null);
   const [isBodyweight, setIsBodyweight] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const editing = !!exercise;
+
+  useEffect(() => {
+    if (visible && exercise) {
+      setName(exercise.name);
+      setGroup(exercise.muscle_group);
+      setIsBodyweight(exercise.is_bodyweight);
+    }
+  }, [visible, exercise]);
 
   function reset() {
     setName('');
