@@ -1,7 +1,7 @@
 import { decode } from 'base64-arraybuffer';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useFocusEffect } from 'expo-router';
-import { Moon, Plus, Trash2 } from 'lucide-react-native';
+import { Moon, Plus, Trash2, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -48,6 +48,7 @@ export default function WorkoutScreen() {
     start,
     startFromRoutine,
     addExercise,
+    removeExercise,
     logSet,
     updateSet,
     deleteSet,
@@ -317,6 +318,25 @@ export default function WorkoutScreen() {
     setTimeout(() => setShareOpen(true), 350);
   }
 
+  function handleRemoveExercise(entry: WorkoutEntry) {
+    const remove = () =>
+      removeExercise(entry.exercise.id).catch((err: any) =>
+        Alert.alert('Could not remove exercise', err.message)
+      );
+    if (entry.sets.length === 0) {
+      remove();
+      return;
+    }
+    Alert.alert(
+      `Remove ${entry.exercise.name}?`,
+      `${entry.sets.length} logged ${entry.sets.length === 1 ? 'set' : 'sets'} will be deleted.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Remove', style: 'destructive', onPress: remove },
+      ]
+    );
+  }
+
   function handleDiscard() {
     Alert.alert('Discard workout?', 'All logged sets will be deleted.', [
       { text: 'Keep going', style: 'cancel' },
@@ -479,6 +499,7 @@ export default function WorkoutScreen() {
           }}
           onUpdateSet={(exerciseId, setId, patch) => updateSet(exerciseId, setId, patch)}
           onDeleteSet={(exerciseId, setId) => deleteSet(exerciseId, setId)}
+          onRemoveExercise={handleRemoveExercise}
         />
       </KeyboardAvoidingView>
 
@@ -625,6 +646,7 @@ function ExerciseList({
   onLogSet,
   onUpdateSet,
   onDeleteSet,
+  onRemoveExercise,
 }: {
   entries: WorkoutEntry[];
   onAddPress: () => void;
@@ -635,6 +657,7 @@ function ExerciseList({
     patch: { weight?: number; reps?: number }
   ) => Promise<void>;
   onDeleteSet: (exerciseId: number, setId: string) => void;
+  onRemoveExercise: (entry: WorkoutEntry) => void;
 }) {
   const scrollRef = useRef<ScrollView>(null);
   const prevEntryCount = useRef(entries.length);
@@ -664,6 +687,7 @@ function ExerciseList({
           onLogSet={(weight, reps) => onLogSet(entry.exercise.id, weight, reps)}
           onUpdateSet={(setId, patch) => onUpdateSet(entry.exercise.id, setId, patch)}
           onDeleteSet={(setId) => onDeleteSet(entry.exercise.id, setId)}
+          onRemove={() => onRemoveExercise(entry)}
         />
       ))}
       <AddExerciseButton hasExercises={entries.length > 0} onPress={onAddPress} />
@@ -697,12 +721,14 @@ function ExerciseCard({
   onLogSet,
   onUpdateSet,
   onDeleteSet,
+  onRemove,
 }: {
   order: number;
   entry: WorkoutEntry;
   onLogSet: (weight: number, reps: number) => Promise<void>;
   onUpdateSet: (setId: string, patch: { weight?: number; reps?: number }) => Promise<void>;
   onDeleteSet: (setId: string) => void;
+  onRemove: () => void;
 }) {
   const [draft, setDraft] = useState<{ weight: string; reps: string } | null>(null);
   const [committing, setCommitting] = useState(false);
@@ -755,6 +781,9 @@ function ExerciseCard({
             <MuscleMap muscles={muscles} side="front" />
           </View>
         )}
+        <Pressable onPress={onRemove} hitSlop={10} className="self-start active:opacity-70">
+          <X size={16} color="#8B98A9" strokeWidth={2} />
+        </Pressable>
       </View>
 
       {(entry.sets.length > 0 || draft !== null) && (

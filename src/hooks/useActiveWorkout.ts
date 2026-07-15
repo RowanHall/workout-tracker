@@ -195,6 +195,20 @@ export function useActiveWorkout(userId: string | undefined) {
     [userId, workout]
   );
 
+  const removeExercise = useCallback(
+    async (exerciseId: number) => {
+      if (!workout) return;
+      const { error } = await supabase
+        .from('workout_sets')
+        .delete()
+        .eq('workout_id', workout.id)
+        .eq('exercise_id', exerciseId);
+      if (error) throw error;
+      setEntries((prev) => prev.filter((e) => e.exercise.id !== exerciseId));
+    },
+    [workout]
+  );
+
   const logSet = useCallback(
     async (exerciseId: number, weight: number, reps: number) => {
       if (!workout) return;
@@ -275,6 +289,7 @@ export function useActiveWorkout(userId: string | undefined) {
     start,
     startFromRoutine,
     addExercise,
+    removeExercise,
     logSet,
     updateSet,
     deleteSet,

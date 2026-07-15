@@ -1,3 +1,4 @@
+import { Timer } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, Vibration, View } from 'react-native';
 
@@ -32,7 +33,17 @@ export function RestTimer({ trigger, defaultSeconds = 90 }: RestTimerProps) {
     return () => clearInterval(id);
   }, [remaining > 0]);
 
-  if (remaining <= 0) return null;
+  if (remaining <= 0) {
+    return (
+      <Pressable
+        className="flex-row items-center justify-center gap-2 rounded-2xl bg-surface-2 py-3 active:opacity-70"
+        onPress={() => setRemaining(defaultSeconds)}
+      >
+        <Timer size={14} color="#8B98A9" strokeWidth={2} />
+        <Text className="text-sm font-semibold text-muted">Rest Timer</Text>
+      </Pressable>
+    );
+  }
 
   const minutes = Math.floor(remaining / 60);
   const seconds = remaining % 60;
@@ -46,6 +57,12 @@ export function RestTimer({ trigger, defaultSeconds = 90 }: RestTimerProps) {
         </Text>
       </View>
       <View className="flex-row gap-2">
+        <Pressable
+          className="rounded-lg bg-surface px-4 py-2 active:opacity-70"
+          onPress={() => setRemaining((prev) => Math.max(0, prev - 30))}
+        >
+          <Text className="font-semibold text-white">-30s</Text>
+        </Pressable>
         <Pressable
           className="rounded-lg bg-surface px-4 py-2 active:opacity-70"
           onPress={() => setRemaining((prev) => prev + 30)}

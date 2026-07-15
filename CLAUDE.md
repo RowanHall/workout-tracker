@@ -83,7 +83,7 @@ Use `KeyboardAvoidingView` + explicit `flex-1` on the sheet container so the foo
 - **"Add Set" creates a draft row** (`border-primary-dim/40` border) with empty inputs and **dark green placeholders** (`#16803C`) showing last session's weight / reps. Commits to DB on blur once both fields are valid. Only one draft at a time — "Add Set" disabled while a draft exists.
 - **Committed set rows** are inline editable (`SetRow`): tap weight or reps, blur to save. `selectTextOnFocus` highlights the value for one-tap overwrite.
 - **"Add Exercise"** lives at the bottom of the list as a dashed-border button — matches the "Add Set" language; doubles as the empty state.
-- **Rest timer** sits in the workout **header** (under the summary stats row), not pinned to the bottom. `RestTimer` only renders when `remaining > 0`, and ignores its mounted `trigger` value so it never auto-starts on a new workout.
+- **Rest timer** sits in the workout **header** (under the summary stats row), not pinned to the bottom. When idle, `RestTimer` renders a muted "Rest Timer" start button in the same slot (so a skipped/expired timer can be restarted manually); it ignores its mounted `trigger` value so it never auto-starts on a new workout.
 
 ## Workout detail (`/workout/[id]`)
 
