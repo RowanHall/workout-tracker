@@ -13,6 +13,7 @@ import {
 
 import { NewExerciseModal } from '@/components/NewExerciseModal';
 import { FREE_CUSTOM_EXERCISE_LIMIT } from '@/lib/limits';
+import { matchesSearch } from '@/lib/search';
 import { supabase } from '@/lib/supabase';
 import { estimatedOneRepMax } from '@/lib/strength';
 import type { Exercise } from '@/lib/types';
@@ -97,9 +98,8 @@ export default function ExercisesScreen() {
   }, [load]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((e) => e.name.toLowerCase().includes(q));
+    if (!search.trim()) return rows;
+    return rows.filter((e) => matchesSearch(e.name, search));
   }, [rows, search]);
 
   function handleNewPress() {

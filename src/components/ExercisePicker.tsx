@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 
+import { matchesSearch } from '@/lib/search';
 import { supabase } from '@/lib/supabase';
 import type { Exercise, MuscleGroup } from '@/lib/types';
 
@@ -55,7 +56,7 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
       exercises.filter(
         (ex) =>
           (!group || ex.muscle_group === group) &&
-          (!search || ex.name.toLowerCase().includes(search.toLowerCase()))
+          (!search || matchesSearch(ex.name, search))
       ),
     [exercises, search, group]
   );
