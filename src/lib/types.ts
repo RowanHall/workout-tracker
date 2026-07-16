@@ -122,7 +122,12 @@ export interface FeedWorkout extends Workout {
     display_name: string | null;
     avatar_url: string | null;
   };
-  workout_sets: { id: string; is_pr: boolean }[];
+  workout_sets: {
+    id: string;
+    is_pr: boolean;
+    exercise_id: number;
+    exercises: { name: string } | null;
+  }[];
   workout_photos: { photo_url: string; position: number }[];
   feed_interactions: FeedInteraction[];
 }

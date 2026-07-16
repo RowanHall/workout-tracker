@@ -16,9 +16,24 @@ import { FREE_CUSTOM_EXERCISE_LIMIT } from '@/lib/limits';
 import { matchesSearch } from '@/lib/search';
 import { supabase } from '@/lib/supabase';
 import { estimatedOneRepMax } from '@/lib/strength';
-import type { Exercise } from '@/lib/types';
+import type { Exercise, MuscleGroup } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
 import { usePremium } from '@/providers/PremiumProvider';
+
+// Canonical display order for the muscle-group filter chips.
+const MUSCLE_GROUP_ORDER: MuscleGroup[] = [
+  'chest',
+  'back',
+  'shoulders',
+  'biceps',
+  'triceps',
+  'quads',
+  'hamstrings',
+  'glutes',
+  'calves',
+  'core',
+  'full_body',
+];
 
 interface ExerciseRow {
   id: number;
@@ -43,6 +58,7 @@ export default function ExercisesScreen() {
   const [rows, setRows] = useState<ExerciseRow[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState('');
+  const [muscleFilter, setMuscleFilter] = useState<MuscleGroup | 'all'>('all');
   const [creating, setCreating] = useState(false);
 
   const load = useCallback(async () => {
@@ -101,10 +117,21 @@ export default function ExercisesScreen() {
     }, [load])
   );
 
+  // Only surface chips for groups that actually have exercises, kept in the
+  // canonical order above.
+  const muscleGroups = useMemo(() => {
+    const present = new Set(rows.map((r) => r.muscleGroup));
+    return MUSCLE_GROUP_ORDER.filter((g) => present.has(g));
+  }, [rows]);
+
   const filtered = useMemo(() => {
-    if (!search.trim()) return rows;
-    return rows.filter((e) => matchesSearch(e.name, search));
-  }, [rows, search]);
+    const q = search.trim();
+    return rows.filter(
+      (e) =>
+        (muscleFilter === 'all' || e.muscleGroup === muscleFilter) &&
+        (!q || matchesSearch(e.name, search))
+    );
+  }, [rows, search, muscleFilter]);
 
   function handleNewPress() {
     const customCount = rows.filter((r) => r.isCustom).length;
@@ -147,22 +174,47 @@ export default function ExercisesScreen() {
         }}
       />
 
-      <View className="px-4 pt-4">
-        <TextInput
-          className="rounded-xl border border-border bg-surface px-4 py-3 text-base text-white"
-          placeholder="Search exercises…"
-          placeholderTextColor="#8B98A9"
-          autoCapitalize="none"
-          value={search}
-          onChangeText={setSearch}
-        />
-      </View>
-
       <FlatList
         data={filtered}
         keyExtractor={(item) => String(item.id)}
         contentContainerClassName="p-4"
         keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={
+          // Scrolls with the list rather than staying pinned.
+          <View className="mb-4">
+            <TextInput
+              className="rounded-xl border border-border bg-surface px-4 py-3 text-base text-white"
+              placeholder="Search exercises…"
+              placeholderTextColor="#8B98A9"
+              autoCapitalize="none"
+              value={search}
+              onChangeText={setSearch}
+            />
+
+            <View className="flex-row flex-wrap gap-2 pt-3">
+              {(['all', ...muscleGroups] as const).map((group) => {
+                const active = muscleFilter === group;
+                return (
+                  <Pressable
+                    key={group}
+                    onPress={() => setMuscleFilter(group)}
+                    className={`rounded-full px-3.5 py-1.5 active:opacity-70 ${
+                      active ? 'bg-primary' : 'bg-surface-2'
+                    }`}
+                  >
+                    <Text
+                      className={`text-[13px] font-semibold capitalize ${
+                        active ? 'text-background' : 'text-muted'
+                      }`}
+                    >
+                      {group === 'all' ? 'All' : group.replace('_', ' ')}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        }
         renderItem={({ item }) => {
           const used = item.sets > 0;
           return (

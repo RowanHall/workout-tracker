@@ -48,6 +48,7 @@ export function WorkoutCard({
   const photoUrls = [...(workout.workout_photos ?? [])]
     .sort((a, b) => a.position - b.position)
     .map((p) => p.photo_url);
+  const exerciseSummary = summarizeExercises(workout.workout_sets);
   const durationLabel = workout.ended_at
     ? formatDuration(workout.started_at, workout.ended_at)
     : null;
@@ -62,7 +63,7 @@ export function WorkoutCard({
   }
 
   return (
-    <View className="mb-4 overflow-hidden rounded-2xl bg-surface">
+    <View className="border-b border-white/[0.06] bg-background pb-2">
       <View className="flex-row items-center px-4 py-3">
         <Pressable
           className="flex-1 flex-row items-center active:opacity-70"
@@ -92,6 +93,7 @@ export function WorkoutCard({
         photoUrls={photoUrls}
         title={workout.title}
         volume={workout.total_volume}
+        exercises={exerciseSummary}
       />
 
       <View className="flex-row items-center gap-5 px-4 pt-3">
@@ -200,49 +202,113 @@ export function WorkoutCard({
   );
 }
 
+const MAX_HERO_EXERCISES = 5;
+
+function summarizeExercises(
+  sets: FeedWorkout['workout_sets'],
+): { id: number; name: string; count: number }[] {
+  const order: number[] = [];
+  const byId = new Map<number, { id: number; name: string; count: number }>();
+  for (const set of sets) {
+    const name = set.exercises?.name;
+    if (!name) continue;
+    const existing = byId.get(set.exercise_id);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      byId.set(set.exercise_id, { id: set.exercise_id, name, count: 1 });
+      order.push(set.exercise_id);
+    }
+  }
+  return order.map((id) => byId.get(id)!);
+}
+
 function FeedHero({
   workoutId,
   photoUrls,
   title,
   volume,
+  exercises,
 }: {
   workoutId: string;
   photoUrls: string[];
   title: string;
   volume: number;
+  exercises: { id: number; name: string; count: number }[];
 }) {
   const { width: screenWidth } = useWindowDimensions();
-  const cardWidth = screenWidth - 32;
+  const cardWidth = screenWidth;
 
-  if (photoUrls.length === 0) {
+  if (photoUrls.length > 0) {
+    return <FeedPhotoCarousel workoutId={workoutId} urls={photoUrls} cardWidth={cardWidth} />;
+  }
+
+  if (exercises.length > 0) {
+    const shown = exercises.slice(0, MAX_HERO_EXERCISES);
+    const remaining = exercises.length - shown.length;
     return (
       <Pressable
-        className="border-y border-white/5 bg-surface-2 active:opacity-90"
-        style={{ width: cardWidth, height: Math.round(cardWidth * 0.55) }}
+        className="border-y border-white/5 bg-surface px-5 py-4 active:opacity-90"
         onPress={() => router.push(`/workout/${workoutId}`)}
       >
-        <View className="flex-1 items-center justify-center px-6">
-          <Dumbbell size={28} color="#22C55E" strokeWidth={2} />
-          <Text
-            className="mt-3 text-[44px] font-extrabold text-white"
-            style={{ fontVariant: ['tabular-nums'], letterSpacing: -1.5 }}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-          >
-            {formatVolume(volume)}
-          </Text>
-          <Text
-            className="mt-1 text-[11px] font-bold uppercase tracking-[2.5px] text-muted"
-            numberOfLines={1}
-          >
-            {title}
+        <View className="mb-1 flex-row items-center gap-2">
+          <Dumbbell size={14} color="#22C55E" strokeWidth={2.5} />
+          <Text className="text-[11px] font-bold uppercase tracking-[2.5px] text-muted">
+            {exercises.length} {exercises.length === 1 ? 'Exercise' : 'Exercises'}
           </Text>
         </View>
+        {shown.map((ex, i) => (
+          <View
+            key={ex.id}
+            className={`flex-row items-center justify-between py-2.5 ${
+              i < shown.length - 1 ? 'border-b border-white/5' : ''
+            }`}
+          >
+            <Text className="flex-1 pr-3 text-[15px] text-white" numberOfLines={1}>
+              {ex.name}
+            </Text>
+            <Text
+              className="text-[13px] font-semibold text-muted"
+              style={{ fontVariant: ['tabular-nums'] }}
+            >
+              {ex.count} {ex.count === 1 ? 'set' : 'sets'}
+            </Text>
+          </View>
+        ))}
+        {remaining > 0 && (
+          <Text className="pt-2.5 text-[13px] text-muted">
+            +{remaining} more {remaining === 1 ? 'exercise' : 'exercises'}
+          </Text>
+        )}
       </Pressable>
     );
   }
 
-  return <FeedPhotoCarousel workoutId={workoutId} urls={photoUrls} cardWidth={cardWidth} />;
+  return (
+    <Pressable
+      className="border-y border-white/5 bg-surface active:opacity-90"
+      style={{ width: cardWidth, height: Math.round(cardWidth * 0.55) }}
+      onPress={() => router.push(`/workout/${workoutId}`)}
+    >
+      <View className="flex-1 items-center justify-center px-6">
+        <Dumbbell size={28} color="#22C55E" strokeWidth={2} />
+        <Text
+          className="mt-3 text-[44px] font-extrabold text-white"
+          style={{ fontVariant: ['tabular-nums'], letterSpacing: -1.5 }}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+        >
+          {formatVolume(volume)}
+        </Text>
+        <Text
+          className="mt-1 text-[11px] font-bold uppercase tracking-[2.5px] text-muted"
+          numberOfLines={1}
+        >
+          {title}
+        </Text>
+      </View>
+    </Pressable>
+  );
 }
 
 function FeedPhotoCarousel({

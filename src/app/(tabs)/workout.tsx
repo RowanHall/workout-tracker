@@ -382,22 +382,19 @@ export default function WorkoutScreen() {
       <SafeAreaView className="flex-1 bg-background" edges={['top', 'left', 'right']}>
         <ScrollView
           className="flex-1"
-          contentContainerStyle={{ paddingBottom: 32 }}
+          contentContainerStyle={{ paddingBottom: 48 }}
           showsVerticalScrollIndicator={false}
         >
-          <View className="px-4 pt-3">
-            <View className="rounded-2xl bg-surface p-4">
-              <Text className="mb-3 text-base font-bold text-white">This Week</Text>
-              <WeekTracker
-                workoutDates={weekDates}
-                restDates={weekRestDates}
-                workoutIds={weekWorkoutIds}
-                onDayPress={(id) => router.push(`/workout/${id}`)}
-              />
-            </View>
-          </View>
+          <Section label="This Week">
+            <WeekTracker
+              workoutDates={weekDates}
+              restDates={weekRestDates}
+              workoutIds={weekWorkoutIds}
+              onDayPress={(id) => router.push(`/workout/${id}`)}
+            />
+          </Section>
 
-          <View className="items-center px-8 pt-10">
+          <View className="px-5 pt-7">
             <Pressable
               className="w-full items-center rounded-2xl bg-primary py-5 active:opacity-80"
               onPress={() => start().catch((e) => Alert.alert('Error', e.message))}
@@ -405,7 +402,7 @@ export default function WorkoutScreen() {
               <Text className="text-lg font-bold text-background">Start Empty Workout</Text>
             </Pressable>
             <Pressable
-              className="mt-3 w-full flex-row items-center justify-center gap-2 rounded-2xl border border-border py-4 active:opacity-70 disabled:opacity-40"
+              className="mt-3 w-full flex-row items-center justify-center gap-2 rounded-2xl border border-white/10 py-4 active:opacity-70 disabled:opacity-40"
               disabled={!canLogRest || loggingRest}
               onPress={handleLogRestDay}
             >
@@ -415,7 +412,7 @@ export default function WorkoutScreen() {
               </Text>
             </Pressable>
             {restHelper && (
-              <Text className="mt-3 text-xs text-muted">{restHelper}</Text>
+              <Text className="mt-3 text-center text-xs text-muted">{restHelper}</Text>
             )}
           </View>
 
@@ -471,7 +468,7 @@ export default function WorkoutScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         className="flex-1"
       >
-        <View className="px-4 py-3">
+        <View className="px-5 py-3">
           <View className="flex-row items-center justify-between">
             <View className="flex-1 pr-3">
               <Text className="text-xl font-bold text-white">{workout.title}</Text>
@@ -501,9 +498,9 @@ export default function WorkoutScreen() {
 
           <View className="mt-3 flex-row rounded-2xl bg-surface py-3">
             <SummaryStat value={String(entries.length)} label="Exercises" />
-            <View className="w-px bg-border" />
+            <View className="w-px bg-white/10" />
             <SummaryStat value={String(totalSets)} label="Sets" />
-            <View className="w-px bg-border" />
+            <View className="w-px bg-white/10" />
             <SummaryStat value={totalVolume.toLocaleString()} label="Volume · lbs" />
           </View>
 
@@ -578,18 +575,7 @@ function RoutinesSection({
     : `${routines.length}/${FREE_ROUTINE_LIMIT}`;
 
   return (
-    <View className="px-5 pt-10">
-      <View className="mb-3 flex-row items-baseline justify-between">
-        <Text className="text-[11px] font-bold uppercase tracking-[2.5px] text-muted">
-          Routines
-        </Text>
-        {suffix && (
-          <Text className="text-[11px] font-medium uppercase tracking-[1.5px] text-muted/70">
-            {suffix}
-          </Text>
-        )}
-      </View>
-
+    <Section label="Routines" eyebrowSuffix={suffix ?? undefined}>
       {routines.map((r) => {
         const starting = startingRoutineId === r.id;
         return (
@@ -634,6 +620,32 @@ function RoutinesSection({
           Free limit reached. Go Pro for unlimited routines.
         </Text>
       )}
+    </Section>
+  );
+}
+
+function Section({
+  label,
+  eyebrowSuffix,
+  children,
+}: {
+  label: string;
+  eyebrowSuffix?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <View className="px-5 pt-7">
+      <View className="mb-3 flex-row items-baseline justify-between">
+        <Text className="text-[11px] font-bold uppercase tracking-[2.5px] text-muted">
+          {label}
+        </Text>
+        {eyebrowSuffix && (
+          <Text className="text-[11px] font-medium uppercase tracking-[1.5px] text-muted/70">
+            {eyebrowSuffix}
+          </Text>
+        )}
+      </View>
+      {children}
     </View>
   );
 }
@@ -641,7 +653,12 @@ function RoutinesSection({
 function SummaryStat({ value, label }: { value: string; label: string }) {
   return (
     <View className="flex-1 items-center">
-      <Text className="text-xl font-extrabold text-white">{value}</Text>
+      <Text
+        className="text-xl font-extrabold text-white"
+        style={{ fontVariant: ['tabular-nums'] }}
+      >
+        {value}
+      </Text>
       <Text className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
         {label}
       </Text>
@@ -701,7 +718,7 @@ function ExerciseList({
     <ScrollView
       ref={scrollRef}
       className="flex-1"
-      contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+      contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >

@@ -52,7 +52,7 @@ export default function FeedScreen() {
       .select(
         `*,
          profiles (username, display_name, avatar_url),
-         workout_sets (id, is_pr),
+         workout_sets (id, is_pr, exercise_id, exercises (name)),
          workout_photos (photo_url, position),
          feed_interactions (id, workout_id, user_id, type, content, created_at, profiles (username))`,
       )
@@ -138,16 +138,16 @@ export default function FeedScreen() {
       <FlatList
         data={feed}
         keyExtractor={(item) => item.id}
-        contentContainerClassName="px-4 pb-4"
+        contentContainerClassName="pb-4"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#22C55E" />
         }
         ListHeaderComponent={
           userId && mode === "following" ? (
-            <>
+            <View className="px-4">
               <WelcomeBanner greetingName={greetingName} myUserId={userId} />
               <SuggestedAthletes myUserId={userId} />
-            </>
+            </View>
           ) : null
         }
         renderItem={({ item }) => (
