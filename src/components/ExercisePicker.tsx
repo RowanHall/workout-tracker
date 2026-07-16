@@ -3,7 +3,6 @@ import {
   FlatList,
   Modal,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
@@ -12,6 +11,7 @@ import {
 import { matchesSearch } from '@/lib/search';
 import { supabase } from '@/lib/supabase';
 import type { Exercise, MuscleGroup } from '@/lib/types';
+import { useAuth } from '@/providers/AuthProvider';
 
 const MUSCLE_GROUPS: MuscleGroup[] = [
   'chest',
@@ -38,28 +38,52 @@ interface ExercisePickerProps {
 }
 
 export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerProps) {
+  const { session } = useAuth();
+  const userId = session?.user.id;
+
   const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [setCounts, setSetCounts] = useState<Map<number, number>>(new Map());
   const [search, setSearch] = useState('');
   const [group, setGroup] = useState<MuscleGroup | null>(null);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || !userId) return;
     supabase
       .from('exercises')
       .select('*')
+      // Built-in library + the current user's own custom ones (RLS lets every
+      // signed-in user read all exercises, but only the owner should see them).
+      .or(`is_custom.eq.false,created_by.eq.${userId}`)
       .order('name')
       .then(({ data }) => setExercises((data as Exercise[]) ?? []));
-  }, [visible]);
+    supabase
+      .from('workout_sets')
+      .select('exercise_id, workouts!inner (user_id, ended_at)')
+      .eq('workouts.user_id', userId)
+      .not('workouts.ended_at', 'is', null)
+      .then(({ data }) => {
+        const counts = new Map<number, number>();
+        for (const row of (data ?? []) as unknown as { exercise_id: number }[]) {
+          counts.set(row.exercise_id, (counts.get(row.exercise_id) ?? 0) + 1);
+        }
+        setSetCounts(counts);
+      });
+  }, [visible, userId]);
 
-  const filtered = useMemo(
-    () =>
-      exercises.filter(
-        (ex) =>
-          (!group || ex.muscle_group === group) &&
-          (!search || matchesSearch(ex.name, search))
-      ),
-    [exercises, search, group]
-  );
+  const filtered = useMemo(() => {
+    const matches = exercises.filter(
+      (ex) =>
+        (!group || ex.muscle_group === group) &&
+        (!search || matchesSearch(ex.name, search))
+    );
+    // Used exercises bubble to the top by set count; everything else falls
+    // through to alphabetical order.
+    return matches.sort(
+      (a, b) =>
+        (setCounts.get(b.id) ?? 0) - (setCounts.get(a.id) ?? 0) ||
+        a.name.localeCompare(b.name)
+    );
+  }, [exercises, setCounts, search, group]);
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
@@ -72,50 +96,49 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
         </View>
 
         <TextInput
-          className="mb-3 rounded-xl border border-border bg-surface px-4 py-3 text-base text-white"
+          className="mb-3 rounded-xl bg-surface-2 px-4 py-3 text-base text-white"
           placeholder="Search exercises…"
           placeholderTextColor="#8B98A9"
           value={search}
           onChangeText={setSearch}
         />
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          className="mb-3 max-h-10"
-          contentContainerClassName="gap-2"
-        >
-          {MUSCLE_GROUPS.map((mg) => (
-            <Pressable
-              key={mg}
-              className={`rounded-full border px-3.5 py-1.5 ${
-                group === mg ? 'border-primary bg-primary-dim' : 'border-border bg-surface'
-              }`}
-              onPress={() => setGroup(group === mg ? null : mg)}
-            >
-              <Text
-                className={`text-sm capitalize ${
-                  group === mg ? 'font-semibold text-white' : 'text-muted'
+        <View className="mb-2 flex-row flex-wrap gap-2">
+          {MUSCLE_GROUPS.map((mg) => {
+            const active = group === mg;
+            return (
+              <Pressable
+                key={mg}
+                className={`rounded-full px-3.5 py-1.5 ${
+                  active ? 'bg-primary' : 'bg-surface-2'
                 }`}
+                onPress={() => setGroup(active ? null : mg)}
               >
-                {label(mg)}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+                <Text
+                  className={`text-[13px] capitalize ${
+                    active ? 'font-semibold text-background' : 'text-muted'
+                  }`}
+                >
+                  {label(mg)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
         <FlatList
           data={filtered}
           keyExtractor={(item) => String(item.id)}
+          keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <Pressable
-              className="mb-2 flex-row items-center justify-between rounded-xl bg-surface px-4 py-3.5 active:opacity-70"
+              className="flex-row items-center justify-between border-b border-white/5 py-3.5 active:opacity-70"
               onPress={() => {
                 onSelect(item);
                 onClose();
               }}
             >
-              <Text className="text-base font-medium text-white">{item.name}</Text>
+              <Text className="text-[15px] text-white">{item.name}</Text>
               <Text className="text-xs capitalize text-muted">
                 {label(item.muscle_group)}
               </Text>

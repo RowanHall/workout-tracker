@@ -13,16 +13,23 @@ export default function PeopleScreen() {
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<Profile[]>([]);
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
+  const [requestedIds, setRequestedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!userId) return;
     supabase
       .from('social_follows')
-      .select('followed_id')
+      .select('followed_id, status')
       .eq('follower_id', userId)
-      .then(({ data }) =>
-        setFollowedIds(new Set((data ?? []).map((row) => row.followed_id)))
-      );
+      .then(({ data }) => {
+        const rows = (data ?? []) as { followed_id: string; status: string }[];
+        setFollowedIds(
+          new Set(rows.filter((r) => r.status === 'accepted').map((r) => r.followed_id))
+        );
+        setRequestedIds(
+          new Set(rows.filter((r) => r.status === 'pending').map((r) => r.followed_id))
+        );
+      });
   }, [userId]);
 
   useEffect(() => {
@@ -44,23 +51,33 @@ export default function PeopleScreen() {
 
   async function toggleFollow(target: Profile) {
     if (!userId) return;
-    const isFollowing = followedIds.has(target.id);
-    setFollowedIds((prev) => {
-      const next = new Set(prev);
-      if (isFollowing) next.delete(target.id);
-      else next.add(target.id);
-      return next;
-    });
-    if (isFollowing) {
+    const isConnected = followedIds.has(target.id) || requestedIds.has(target.id);
+    if (isConnected) {
+      setFollowedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(target.id);
+        return next;
+      });
+      setRequestedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(target.id);
+        return next;
+      });
       await supabase
         .from('social_follows')
         .delete()
         .eq('follower_id', userId)
         .eq('followed_id', target.id);
-    } else {
+    } else if (target.is_public) {
+      setFollowedIds((prev) => new Set(prev).add(target.id));
       await supabase
         .from('social_follows')
-        .insert({ follower_id: userId, followed_id: target.id });
+        .insert({ follower_id: userId, followed_id: target.id, status: 'accepted' });
+    } else {
+      setRequestedIds((prev) => new Set(prev).add(target.id));
+      await supabase
+        .from('social_follows')
+        .insert({ follower_id: userId, followed_id: target.id, status: 'pending' });
     }
   }
 
@@ -80,6 +97,8 @@ export default function PeopleScreen() {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => {
           const isFollowing = followedIds.has(item.id);
+          const isRequested = requestedIds.has(item.id);
+          const connected = isFollowing || isRequested;
           return (
             <Pressable
               className="mb-2 flex-row items-center rounded-xl bg-surface px-4 py-3 active:opacity-70"
@@ -100,16 +119,16 @@ export default function PeopleScreen() {
               </View>
               <Pressable
                 className={`rounded-full px-4 py-2 active:opacity-70 ${
-                  isFollowing ? 'bg-surface-2' : 'bg-primary'
+                  connected ? 'bg-surface-2' : 'bg-primary'
                 }`}
                 onPress={() => toggleFollow(item)}
               >
                 <Text
                   className={`text-sm font-bold ${
-                    isFollowing ? 'text-muted' : 'text-background'
+                    connected ? 'text-muted' : 'text-background'
                   }`}
                 >
-                  {isFollowing ? 'Following' : 'Follow'}
+                  {isFollowing ? 'Following' : isRequested ? 'Requested' : 'Follow'}
                 </Text>
               </Pressable>
             </Pressable>

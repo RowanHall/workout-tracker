@@ -209,6 +209,24 @@ function RootNavigator() {
             headerTintColor: '#FFFFFF',
           }}
         />
+        <Stack.Screen
+          name="connections"
+          options={{
+            headerShown: true,
+            title: 'Connections',
+            headerStyle: { backgroundColor: '#151B23' },
+            headerTintColor: '#FFFFFF',
+          }}
+        />
+        <Stack.Screen
+          name="activity"
+          options={{
+            headerShown: true,
+            title: 'Activity',
+            headerStyle: { backgroundColor: '#151B23' },
+            headerTintColor: '#FFFFFF',
+          }}
+        />
       </Stack.Protected>
         <Stack.Protected guard={!session}>
           <Stack.Screen name="(auth)" />

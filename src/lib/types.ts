@@ -30,6 +30,10 @@ export interface Profile {
   experience_level: 'beginner' | 'intermediate' | 'advanced' | null;
   referral_source: string | null;
   onboarding_completed_at: string | null;
+  /** When false, the account is private: only the owner sees their streak,
+   *  consistency tracker, weekly focus, records and workout history. Every
+   *  other visitor sees just the name and avatar. Defaults to true (public). */
+  is_public: boolean;
 }
 
 /** Body parts the `react-native-body-highlighter` library understands. */

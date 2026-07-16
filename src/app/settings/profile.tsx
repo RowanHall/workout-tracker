@@ -36,6 +36,7 @@ type EditField =
   | 'weightUnit'
   | 'distanceUnit'
   | 'referral'
+  | 'privacy'
   | null;
 
 const GENDER_LABELS: Record<Gender, string> = {
@@ -243,6 +244,15 @@ export default function ProfileSettingsScreen() {
         />
       </Section>
 
+      <Section label="Privacy">
+        <Row
+          label="Account"
+          value={profile?.is_public === false ? 'Private' : 'Public'}
+          onPress={() => setEditing('privacy')}
+          last
+        />
+      </Section>
+
       <Section label="Other">
         <Row
           label="Heard about us via"
@@ -362,6 +372,29 @@ export default function ProfileSettingsScreen() {
           }}
           options={REFERRAL_OPTIONS}
         />
+      </EditSheet>
+
+      <EditSheet
+        visible={editing === 'privacy'}
+        title="Account privacy"
+        onClose={() => setEditing(null)}
+      >
+        <SegmentedToggle
+          options={[
+            { label: 'Public', value: 'public' },
+            { label: 'Private', value: 'private' },
+          ]}
+          value={profile?.is_public === false ? 'private' : 'public'}
+          onChange={async (value) => {
+            setEditing(null);
+            await updateProfile({ is_public: value === 'public' });
+          }}
+        />
+        <Text className="mt-4 text-[13px] leading-5 text-muted">
+          When public, anyone who visits your profile can see your streak,
+          consistency tracker, weekly focus, records and workouts. When
+          private, they see only your name and photo.
+        </Text>
       </EditSheet>
 
       <BirthdayEditor

@@ -1,11 +1,10 @@
 import { router, useFocusEffect } from "expo-router";
-import { BarChart3, ChevronRight, Dumbbell, Flame, Settings } from "lucide-react-native";
+import { BarChart3, ChevronRight, Dumbbell, Flame, Heart, Settings } from "lucide-react-native";
 import { useCallback, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Avatar } from "@/components/Avatar";
-import { KovaLogo } from "@/components/KovaLogo";
 import { MuscleMap } from "@/components/MuscleMap";
 import { RadarChart, type RadarAxis } from "@/components/RadarChart";
 import { VolumeHeatmap } from "@/components/VolumeHeatmap";
@@ -55,6 +54,7 @@ export default function ProfileScreen() {
   const [workoutDates, setWorkoutDates] = useState<string[]>([]);
   const [restDates, setRestDates] = useState<string[]>([]);
   const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
+  const [pendingRequests, setPendingRequests] = useState(0);
   const [dailyVolume, setDailyVolume] = useState<Map<string, number>>(new Map());
   const [weekMuscles, setWeekMuscles] = useState<ExerciseMuscle[]>([]);
   const [weekDistribution, setWeekDistribution] = useState<RadarAxis[]>([]);
@@ -69,7 +69,8 @@ export default function ProfileScreen() {
     const weekCutoff = new Date();
     weekCutoff.setDate(weekCutoff.getDate() - 7);
 
-    const [workoutsRes, weekSetsRes, followersRes, followingRes, restRes] = await Promise.all([
+    const [workoutsRes, weekSetsRes, followersRes, followingRes, requestsRes, restRes] =
+      await Promise.all([
       supabase
         .from("workouts")
         .select("id, title, total_volume, total_sets, started_at, ended_at")
@@ -87,11 +88,18 @@ export default function ProfileScreen() {
       supabase
         .from("social_follows")
         .select("*", { count: "exact", head: true })
-        .eq("followed_id", userId),
+        .eq("followed_id", userId)
+        .eq("status", "accepted"),
       supabase
         .from("social_follows")
         .select("*", { count: "exact", head: true })
-        .eq("follower_id", userId),
+        .eq("follower_id", userId)
+        .eq("status", "accepted"),
+      supabase
+        .from("social_follows")
+        .select("*", { count: "exact", head: true })
+        .eq("followed_id", userId)
+        .eq("status", "pending"),
       supabase
         .from("rest_days")
         .select("rest_date")
@@ -110,6 +118,7 @@ export default function ProfileScreen() {
       followers: followersRes.count ?? 0,
       following: followingRes.count ?? 0,
     });
+    setPendingRequests(requestsRes.count ?? 0);
 
     const daily = new Map<string, number>();
     for (const w of workoutRows) {
@@ -153,19 +162,25 @@ export default function ProfileScreen() {
       >
         <View className="flex-row items-center px-5 pt-2">
           <View className="flex-1 flex-row items-center">
-            <KovaLogo size={24} style={{ color: "#FFFFFF" }} />
+            <Pressable
+              className="p-1 active:opacity-70"
+              onPress={() => router.push("/settings")}
+              hitSlop={8}
+            >
+              <Settings size={22} color="#8B98A9" strokeWidth={1.75} />
+            </Pressable>
           </View>
           <View className="flex-row items-center">
-            <Flame size={32} color="#F59E0B" strokeWidth={2.5} />
+            <Flame size={30} color="#F59E0B" strokeWidth={2.5} />
             <View
               pointerEvents="none"
               className="absolute flex-row items-center"
-              style={{ left: 34, top: 0, bottom: 0 }}
+              style={{ left: 32, top: 0, bottom: 0 }}
             >
               <Text
                 numberOfLines={1}
                 style={{
-                  fontSize: 20,
+                  fontSize: 19,
                   fontWeight: "900",
                   fontStyle: "italic",
                   color: "#FFFFFF",
@@ -181,10 +196,16 @@ export default function ProfileScreen() {
           <View className="flex-1 flex-row items-center justify-end">
             <Pressable
               className="p-1 active:opacity-70"
-              onPress={() => router.push("/settings")}
+              onPress={() => router.push("/activity")}
               hitSlop={8}
             >
-              <Settings size={22} color="#8B98A9" strokeWidth={1.75} />
+              <Heart size={22} color="#8B98A9" strokeWidth={1.75} />
+              {pendingRequests > 0 && (
+                <View
+                  className="absolute h-2.5 w-2.5 rounded-full bg-primary"
+                  style={{ top: 2, right: 2 }}
+                />
+              )}
             </Pressable>
           </View>
         </View>
@@ -293,22 +314,40 @@ function Identity({
       </Text>
       <Text className="mt-0.5 text-sm text-muted">@{username}</Text>
       <View className="mt-3 flex-row items-center gap-2.5">
-        <FollowMeta count={followers} label="followers" />
+        <FollowMeta
+          count={followers}
+          label="followers"
+          onPress={() => router.push("/connections?tab=followers")}
+        />
         <View className="h-0.5 w-0.5 rounded-full bg-muted/60" />
-        <FollowMeta count={following} label="following" />
+        <FollowMeta
+          count={following}
+          label="following"
+          onPress={() => router.push("/connections?tab=following")}
+        />
       </View>
     </View>
   );
 }
 
-function FollowMeta({ count, label }: { count: number; label: string }) {
+function FollowMeta({
+  count,
+  label,
+  onPress,
+}: {
+  count: number;
+  label: string;
+  onPress?: () => void;
+}) {
   return (
-    <Text className="text-[13px] text-muted">
-      <Text className="font-semibold text-white" style={{ fontVariant: ["tabular-nums"] }}>
-        {count.toLocaleString()}
-      </Text>{" "}
-      {label}
-    </Text>
+    <Pressable onPress={onPress} hitSlop={8} className="active:opacity-60">
+      <Text className="text-[13px] text-muted">
+        <Text className="font-semibold text-white" style={{ fontVariant: ["tabular-nums"] }}>
+          {count.toLocaleString()}
+        </Text>{" "}
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 

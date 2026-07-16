@@ -43,7 +43,8 @@ export default function FeedScreen() {
     const { data: follows } = await supabase
       .from("social_follows")
       .select("followed_id")
-      .eq("follower_id", userId);
+      .eq("follower_id", userId)
+      .eq("status", "accepted");
     const followedIds = (follows ?? []).map((r) => r.followed_id as string);
 
     let query = supabase
@@ -327,9 +328,11 @@ function WelcomeBanner({ greetingName, myUserId }: { greetingName: string; myUse
         .eq("follower_id", myUserId)
         .eq("followed_id", founder.id);
     } else {
-      await supabase
-        .from("social_follows")
-        .insert({ follower_id: myUserId, followed_id: founder.id });
+      await supabase.from("social_follows").insert({
+        follower_id: myUserId,
+        followed_id: founder.id,
+        status: founder.is_public ? "accepted" : "pending",
+      });
     }
   }
 
@@ -389,6 +392,7 @@ function WelcomeBanner({ greetingName, myUserId }: { greetingName: string; myUse
 function SuggestedAthletes({ myUserId }: { myUserId: string }) {
   const [suggestions, setSuggestions] = useState<Profile[]>([]);
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
+  const [requestedIds, setRequestedIds] = useState<Set<string>>(new Set());
   const [dismissedIds, setDismissedIds] = useState<Set<string> | null>(null);
 
   useEffect(() => {
@@ -431,24 +435,35 @@ function SuggestedAthletes({ myUserId }: { myUserId: string }) {
     await AsyncStorage.setItem(SUGGESTED_DISMISSED_KEY, JSON.stringify(Array.from(next)));
   }
 
-  async function toggleFollow(id: string) {
-    const isFollowing = followedIds.has(id);
-    setFollowedIds((prev) => {
-      const next = new Set(prev);
-      if (isFollowing) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-    if (isFollowing) {
+  async function toggleFollow(target: Profile) {
+    const id = target.id;
+    const isConnected = followedIds.has(id) || requestedIds.has(id);
+    if (isConnected) {
+      setFollowedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      setRequestedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
       await supabase
         .from("social_follows")
         .delete()
         .eq("follower_id", myUserId)
         .eq("followed_id", id);
-    } else {
+    } else if (target.is_public) {
+      setFollowedIds((prev) => new Set(prev).add(id));
       await supabase
         .from("social_follows")
-        .insert({ follower_id: myUserId, followed_id: id });
+        .insert({ follower_id: myUserId, followed_id: id, status: "accepted" });
+    } else {
+      setRequestedIds((prev) => new Set(prev).add(id));
+      await supabase
+        .from("social_follows")
+        .insert({ follower_id: myUserId, followed_id: id, status: "pending" });
     }
   }
 
@@ -466,6 +481,8 @@ function SuggestedAthletes({ myUserId }: { myUserId: string }) {
       >
         {suggestions.map((item) => {
           const isFollowing = followedIds.has(item.id);
+          const isRequested = requestedIds.has(item.id);
+          const connected = isFollowing || isRequested;
           const name = item.display_name ?? item.username;
           return (
             <View key={item.id} className="mr-3 w-[140px] rounded-2xl bg-surface p-3">
@@ -489,17 +506,17 @@ function SuggestedAthletes({ myUserId }: { myUserId: string }) {
                 </Text>
               </Pressable>
               <Pressable
-                onPress={() => toggleFollow(item.id)}
+                onPress={() => toggleFollow(item)}
                 className={`mt-3 items-center rounded-full py-1.5 active:opacity-70 ${
-                  isFollowing ? "bg-surface-2" : "bg-primary"
+                  connected ? "bg-surface-2" : "bg-primary"
                 }`}
               >
                 <Text
                   className={`text-xs font-bold ${
-                    isFollowing ? "text-muted" : "text-background"
+                    connected ? "text-muted" : "text-background"
                   }`}
                 >
-                  {isFollowing ? "Following" : "Follow"}
+                  {isFollowing ? "Following" : isRequested ? "Requested" : "Follow"}
                 </Text>
               </Pressable>
             </View>
