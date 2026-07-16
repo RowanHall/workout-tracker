@@ -1,12 +1,14 @@
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { LineChart, type LinePoint } from '@/components/LineChart';
+import { NewExerciseModal } from '@/components/NewExerciseModal';
 import { RangePicker, rangeCutoff, type Range } from '@/components/RangePicker';
 import { formatVolume } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 import { estimatedOneRepMax } from '@/lib/strength';
+import type { Exercise } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
 
 interface SetRow {
@@ -28,6 +30,9 @@ interface SessionStats {
 interface ExerciseData {
   name: string;
   muscleGroup: string;
+  /** Full row, needed to prefill the edit modal for custom exercises. */
+  record: Exercise;
+  createdBy: string | null;
   predictedMax: number;
   recordedMax: number;
   sessions: SessionStats[];
@@ -70,6 +75,8 @@ export default function ExerciseDetailScreen() {
   const [loaded, setLoaded] = useState(false);
   const [metric, setMetric] = useState<Metric>('e1rm');
   const [range, setRange] = useState<Range>('3m');
+  const [editing, setEditing] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!id || !userId) return;
@@ -79,7 +86,7 @@ export default function ExerciseDetailScreen() {
       const [exerciseRes, setsRes, bwRes] = await Promise.all([
         supabase
           .from('exercises')
-          .select('name, muscle_group, is_bodyweight')
+          .select('id, name, muscle_group, muscles, is_custom, is_bodyweight, created_by')
           .eq('id', id)
           .maybeSingle(),
         supabase
@@ -98,11 +105,9 @@ export default function ExerciseDetailScreen() {
       ]);
       if (cancelled) return;
 
-      const exercise = exerciseRes.data as {
-        name: string;
-        muscle_group: string;
-        is_bodyweight: boolean;
-      } | null;
+      const exercise = exerciseRes.data as
+        | (Exercise & { created_by: string | null })
+        | null;
       const sets = (setsRes.data ?? []) as unknown as SetRow[];
       // Bodyweight movements store only the added load; fold the user's
       // latest body weight into every set so the charts reflect real load.
@@ -152,6 +157,8 @@ export default function ExerciseDetailScreen() {
       setData({
         name: exercise.name,
         muscleGroup: exercise.muscle_group,
+        record: exercise,
+        createdBy: exercise.created_by,
         predictedMax,
         recordedMax,
         sessions,
@@ -163,7 +170,7 @@ export default function ExerciseDetailScreen() {
     return () => {
       cancelled = true;
     };
-  }, [id, userId]);
+  }, [id, userId, reloadKey]);
 
   const filtered = useMemo(() => {
     if (!data) return [] as SessionStats[];
@@ -210,9 +217,26 @@ export default function ExerciseDetailScreen() {
     );
   }
 
+  const canEdit = data.record.is_custom && data.createdBy === userId;
+
   return (
     <ScrollView className="flex-1 bg-background" contentContainerClassName="p-4 pb-8">
-      <Stack.Screen options={{ title: data.name }} />
+      <Stack.Screen
+        options={{
+          title: data.name,
+          headerRight: canEdit
+            ? () => (
+                <Pressable
+                  hitSlop={10}
+                  onPress={() => setEditing(true)}
+                  className="active:opacity-60"
+                >
+                  <Text className="text-[15px] font-semibold text-primary">Edit</Text>
+                </Pressable>
+              )
+            : undefined,
+        }}
+      />
 
       <View className="mb-1 flex-row items-start justify-between gap-3">
         <View className="flex-1">
@@ -280,6 +304,17 @@ export default function ExerciseDetailScreen() {
           />
         )}
       </ChartCard>
+
+      {canEdit && (
+        <NewExerciseModal
+          visible={editing}
+          userId={userId}
+          exercise={data.record}
+          onClose={() => setEditing(false)}
+          onUpdated={() => setReloadKey((k) => k + 1)}
+          onDeleted={() => router.back()}
+        />
+      )}
     </ScrollView>
   );
 }

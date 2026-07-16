@@ -1,6 +1,6 @@
-import { router, Stack } from 'expo-router';
+import { router, Stack, useFocusEffect } from 'expo-router';
 import { ChevronRight, Plus } from 'lucide-react-native';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -93,9 +93,13 @@ export default function ExercisesScreen() {
     setLoaded(true);
   }, [userId]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Refresh on focus so edits/deletes made on the detail screen show up
+  // when navigating back.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   const filtered = useMemo(() => {
     if (!search.trim()) return rows;

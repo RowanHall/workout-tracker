@@ -102,21 +102,33 @@ export function NewExerciseModal({
       Alert.alert('Pick a muscle group', 'Choose which group this exercise belongs to.');
       return;
     }
-    if (!userId) return;
+    if (!editing && !userId) return;
 
     setSaving(true);
-    const { data, error } = await supabase
-      .from('exercises')
-      .insert({
-        name: trimmed,
-        muscle_group: group,
-        muscles: DEFAULT_MUSCLES[group],
-        is_custom: true,
-        is_bodyweight: isBodyweight,
-        created_by: userId,
-      })
-      .select('*')
-      .single();
+    const { data, error } = editing
+      ? await supabase
+          .from('exercises')
+          .update({
+            name: trimmed,
+            muscle_group: group,
+            muscles: DEFAULT_MUSCLES[group],
+            is_bodyweight: isBodyweight,
+          })
+          .eq('id', exercise!.id)
+          .select('*')
+          .single()
+      : await supabase
+          .from('exercises')
+          .insert({
+            name: trimmed,
+            muscle_group: group,
+            muscles: DEFAULT_MUSCLES[group],
+            is_custom: true,
+            is_bodyweight: isBodyweight,
+            created_by: userId,
+          })
+          .select('*')
+          .single();
     setSaving(false);
 
     if (error) {
@@ -128,9 +140,49 @@ export function NewExerciseModal({
       return;
     }
 
-    onCreated(data as Exercise);
+    if (editing) {
+      onUpdated?.(data as Exercise);
+    } else {
+      onCreated?.(data as Exercise);
+    }
     reset();
     onClose();
+  }
+
+  function handleDelete() {
+    if (!exercise) return;
+    Alert.alert(
+      'Delete exercise?',
+      `"${exercise.name}" will be removed from your library.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setSaving(true);
+            const { error } = await supabase
+              .from('exercises')
+              .delete()
+              .eq('id', exercise.id);
+            setSaving(false);
+
+            if (error) {
+              const msg =
+                error.code === '23503'
+                  ? 'This exercise has logged sets or lives in a routine, so it can’t be deleted. Remove those first.'
+                  : error.message;
+              Alert.alert('Could not delete', msg);
+              return;
+            }
+
+            reset();
+            onDeleted?.();
+            onClose();
+          },
+        },
+      ]
+    );
   }
 
   return (
@@ -157,7 +209,9 @@ export function NewExerciseModal({
           >
             <Text className="text-base font-semibold text-muted">Cancel</Text>
           </Pressable>
-          <Text className="text-base font-bold text-white">New Exercise</Text>
+          <Text className="text-base font-bold text-white">
+            {editing ? 'Edit Exercise' : 'New Exercise'}
+          </Text>
           <Pressable hitSlop={8} disabled={saving} onPress={handleSave}>
             <Text
               className={`text-base font-bold ${
@@ -182,7 +236,7 @@ export function NewExerciseModal({
             onChangeText={setName}
             placeholder="e.g. Cable Y-Raise"
             placeholderTextColor="#16803C"
-            autoFocus
+            autoFocus={!editing}
             returnKeyType="done"
             className="border-b border-white/10 pb-2 text-lg font-semibold text-white"
           />
@@ -237,10 +291,23 @@ export function NewExerciseModal({
             />
           </Pressable>
 
-          <Text className="mt-6 text-xs leading-5 text-muted">
-            Your custom exercise will show up alongside the built-in library and be
-            available in routines and active workouts.
-          </Text>
+          {editing ? (
+            <Pressable
+              hitSlop={8}
+              disabled={saving}
+              onPress={handleDelete}
+              className="mt-8 items-center active:opacity-60"
+            >
+              <Text className="text-[15px] font-semibold text-danger">
+                Delete Exercise
+              </Text>
+            </Pressable>
+          ) : (
+            <Text className="mt-6 text-xs leading-5 text-muted">
+              Your custom exercise will show up alongside the built-in library and be
+              available in routines and active workouts.
+            </Text>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </Modal>
