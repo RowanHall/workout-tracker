@@ -32,7 +32,8 @@ function RootNavigator() {
       <Stack
         screenOptions={{
           headerShown: false,
-          headerBackTitle: 'Back',
+          headerBackButtonDisplayMode: 'minimal',
+          headerShadowVisible: false,
           contentStyle: { backgroundColor: '#0B0F14' },
         }}
       >
@@ -47,7 +48,7 @@ function RootNavigator() {
             presentation: 'modal',
             headerShown: true,
             title: 'Find Friends',
-            headerStyle: { backgroundColor: '#151B23' },
+            headerStyle: { backgroundColor: '#0B0F14' },
             headerTintColor: '#FFFFFF',
           }}
         />
@@ -56,7 +57,7 @@ function RootNavigator() {
           options={{
             headerShown: true,
             title: 'Workout',
-            headerStyle: { backgroundColor: '#151B23' },
+            headerStyle: { backgroundColor: '#0B0F14' },
             headerTintColor: '#FFFFFF',
           }}
         />
@@ -79,7 +80,7 @@ function RootNavigator() {
           options={{
             headerShown: true,
             title: t('settings.title'),
-            headerStyle: { backgroundColor: '#151B23' },
+            headerStyle: { backgroundColor: '#0B0F14' },
             headerTintColor: '#FFFFFF',
           }}
         />
@@ -88,7 +89,7 @@ function RootNavigator() {
           options={{
             headerShown: true,
             title: t('language.title'),
-            headerStyle: { backgroundColor: '#151B23' },
+            headerStyle: { backgroundColor: '#0B0F14' },
             headerTintColor: '#FFFFFF',
           }}
         />
@@ -97,7 +98,7 @@ function RootNavigator() {
           options={{
             headerShown: true,
             title: 'Profile',
-            headerStyle: { backgroundColor: '#151B23' },
+            headerStyle: { backgroundColor: '#0B0F14' },
             headerTintColor: '#FFFFFF',
           }}
         />
@@ -106,7 +107,7 @@ function RootNavigator() {
           options={{
             headerShown: true,
             title: 'Account',
-            headerStyle: { backgroundColor: '#151B23' },
+            headerStyle: { backgroundColor: '#0B0F14' },
             headerTintColor: '#FFFFFF',
           }}
         />
@@ -115,7 +116,7 @@ function RootNavigator() {
           options={{
             headerShown: true,
             title: t('notifications.title'),
-            headerStyle: { backgroundColor: '#151B23' },
+            headerStyle: { backgroundColor: '#0B0F14' },
             headerTintColor: '#FFFFFF',
           }}
         />
@@ -124,7 +125,7 @@ function RootNavigator() {
           options={{
             headerShown: true,
             title: t('settings.row.bodyWeight'),
-            headerStyle: { backgroundColor: '#151B23' },
+            headerStyle: { backgroundColor: '#0B0F14' },
             headerTintColor: '#FFFFFF',
           }}
         />
@@ -133,7 +134,7 @@ function RootNavigator() {
           options={{
             headerShown: true,
             title: 'Manage Membership',
-            headerStyle: { backgroundColor: '#151B23' },
+            headerStyle: { backgroundColor: '#0B0F14' },
             headerTintColor: '#FFFFFF',
           }}
         />
@@ -142,7 +143,7 @@ function RootNavigator() {
           options={{
             headerShown: true,
             title: 'Blocked Accounts',
-            headerStyle: { backgroundColor: '#151B23' },
+            headerStyle: { backgroundColor: '#0B0F14' },
             headerTintColor: '#FFFFFF',
           }}
         />
@@ -151,7 +152,7 @@ function RootNavigator() {
           options={{
             headerShown: true,
             title: 'Workout History',
-            headerStyle: { backgroundColor: '#151B23' },
+            headerStyle: { backgroundColor: '#0B0F14' },
             headerTintColor: '#FFFFFF',
           }}
         />
@@ -160,7 +161,7 @@ function RootNavigator() {
           options={{
             headerShown: true,
             title: 'Exercises',
-            headerStyle: { backgroundColor: '#151B23' },
+            headerStyle: { backgroundColor: '#0B0F14' },
             headerTintColor: '#FFFFFF',
           }}
         />
@@ -169,7 +170,7 @@ function RootNavigator() {
           options={{
             headerShown: true,
             title: 'Stats',
-            headerStyle: { backgroundColor: '#151B23' },
+            headerStyle: { backgroundColor: '#0B0F14' },
             headerTintColor: '#FFFFFF',
           }}
         />
@@ -178,7 +179,7 @@ function RootNavigator() {
           options={{
             headerShown: true,
             title: 'Muscle Map',
-            headerStyle: { backgroundColor: '#151B23' },
+            headerStyle: { backgroundColor: '#0B0F14' },
             headerTintColor: '#FFFFFF',
           }}
         />
@@ -187,7 +188,7 @@ function RootNavigator() {
           options={{
             headerShown: true,
             title: 'Muscle Distribution',
-            headerStyle: { backgroundColor: '#151B23' },
+            headerStyle: { backgroundColor: '#0B0F14' },
             headerTintColor: '#FFFFFF',
           }}
         />
@@ -196,7 +197,7 @@ function RootNavigator() {
           options={{
             headerShown: true,
             title: 'Exercise',
-            headerStyle: { backgroundColor: '#151B23' },
+            headerStyle: { backgroundColor: '#0B0F14' },
             headerTintColor: '#FFFFFF',
           }}
         />
@@ -205,7 +206,7 @@ function RootNavigator() {
           options={{
             headerShown: true,
             title: 'Profile',
-            headerStyle: { backgroundColor: '#151B23' },
+            headerStyle: { backgroundColor: '#0B0F14' },
             headerTintColor: '#FFFFFF',
           }}
         />
@@ -214,7 +215,7 @@ function RootNavigator() {
           options={{
             headerShown: true,
             title: 'Connections',
-            headerStyle: { backgroundColor: '#151B23' },
+            headerStyle: { backgroundColor: '#0B0F14' },
             headerTintColor: '#FFFFFF',
           }}
         />
@@ -223,7 +224,7 @@ function RootNavigator() {
           options={{
             headerShown: true,
             title: 'Activity',
-            headerStyle: { backgroundColor: '#151B23' },
+            headerStyle: { backgroundColor: '#0B0F14' },
             headerTintColor: '#FFFFFF',
           }}
         />
