@@ -1,14 +1,19 @@
+import { BlurView } from "expo-blur";
+import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
+import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
 import { BarChart3, ChevronRight, Dumbbell, Flame, Heart, Settings } from "lucide-react-native";
 import { useCallback, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Avatar } from "@/components/Avatar";
 import { MuscleMap } from "@/components/MuscleMap";
 import { RadarChart, type RadarAxis } from "@/components/RadarChart";
 import { VolumeHeatmap } from "@/components/VolumeHeatmap";
 import { WeekTracker } from "@/components/WeekTracker";
+import { floatingTabBarContentInset } from "@/components/FloatingTabBar";
+import { BlurHeaderBackground } from "@/lib/blurHeader";
 import { dateKey, formatDuration, formatVolume } from "@/lib/format";
 import { mergeMuscles } from "@/lib/muscles";
 import { displayStreak } from "@/lib/streak";
@@ -31,6 +36,11 @@ interface WeekSetRow {
   exercises: { muscle_group: string; muscles: ExerciseMuscle[] } | null;
 }
 
+// expo-glass-effect glass when available (iOS 26+); otherwise the expo-blur
+// fallback inside GlassIconButton. Matches the other floating pills — not true
+// system Liquid Glass (see CLAUDE.md). Evaluated once at module scope.
+const GLASS = isLiquidGlassAvailable();
+
 const RADAR_GROUPS = ["Chest", "Back", "Delts", "Arms", "Legs", "Core"] as const;
 type RadarGroup = (typeof RADAR_GROUPS)[number];
 
@@ -50,6 +60,10 @@ const GROUP_TO_RADAR: Record<string, RadarGroup> = {
 export default function ProfileScreen() {
   const { session, profile, refreshProfile } = useAuth();
   const userId = session?.user.id;
+  const insets = useSafeAreaInsets();
+  // Measured height of the floating header so the list rests below it at rest
+  // but scrolls *under* the blur. Seeded with an estimate to avoid a flash.
+  const [headerHeight, setHeaderHeight] = useState(insets.top + 46);
 
   const [workoutDates, setWorkoutDates] = useState<string[]>([]);
   const [restDates, setRestDates] = useState<string[]>([]);
@@ -155,61 +169,15 @@ export default function ProfileScreen() {
   const streak = displayStreak(profile.current_streak, profile.last_workout_date);
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
+    <View className="flex-1 bg-background">
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 48 }}
+        contentContainerStyle={{
+          paddingTop: headerHeight,
+          paddingBottom: floatingTabBarContentInset(insets.bottom),
+        }}
+        scrollIndicatorInsets={{ top: headerHeight }}
       >
-        <View className="flex-row items-center px-5 pt-2">
-          <View className="flex-1 flex-row items-center">
-            <Pressable
-              className="p-1 active:opacity-70"
-              onPress={() => router.push("/settings")}
-              hitSlop={8}
-            >
-              <Settings size={22} color="#8B98A9" strokeWidth={1.75} />
-            </Pressable>
-          </View>
-          <View className="flex-row items-center">
-            <Flame size={30} color="#F59E0B" strokeWidth={2.5} />
-            <View
-              pointerEvents="none"
-              className="absolute flex-row items-center"
-              style={{ left: 32, top: 0, bottom: 0 }}
-            >
-              <Text
-                numberOfLines={1}
-                style={{
-                  fontSize: 19,
-                  fontWeight: "900",
-                  fontStyle: "italic",
-                  color: "#FFFFFF",
-                  letterSpacing: -0.8,
-                  fontVariant: ["tabular-nums"],
-                  paddingRight: 6,
-                }}
-              >
-                {streak}
-              </Text>
-            </View>
-          </View>
-          <View className="flex-1 flex-row items-center justify-end">
-            <Pressable
-              className="p-1 active:opacity-70"
-              onPress={() => router.push("/activity")}
-              hitSlop={8}
-            >
-              <Heart size={22} color="#8B98A9" strokeWidth={1.75} />
-              {pendingRequests > 0 && (
-                <View
-                  className="absolute h-2.5 w-2.5 rounded-full bg-primary"
-                  style={{ top: 2, right: 2 }}
-                />
-              )}
-            </Pressable>
-          </View>
-        </View>
-
         <Identity
           name={displayName}
           username={profile.username}
@@ -241,12 +209,18 @@ export default function ProfileScreen() {
 
         <Section label="Weekly Focus" eyebrowSuffix="last 7 days">
           <View className="flex-row items-center">
-            <View className="flex-1 items-center justify-center px-2 py-5">
+            <Pressable
+              onPress={() => router.push("/muscle-map")}
+              className="flex-1 items-center justify-center px-2 py-5 active:opacity-70"
+            >
               <MuscleMap muscles={weekMuscles} />
-            </View>
-            <View className="flex-1 items-center justify-center px-2 py-5">
+            </Pressable>
+            <Pressable
+              onPress={() => router.push("/muscle-distribution")}
+              className="flex-1 items-center justify-center px-2 py-5 active:opacity-70"
+            >
               <RadarChart data={weekDistribution} />
-            </View>
+            </Pressable>
           </View>
         </Section>
 
@@ -259,9 +233,115 @@ export default function ProfileScreen() {
           ))}
         </Section>
       </ScrollView>
-    </SafeAreaView>
+
+      {/* Floating header: settings / streak / heart stay pinned while the
+          profile scrolls under and blurs through the frosted band. */}
+      <View
+        onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
+        style={{ position: "absolute", top: 0, left: 0, right: 0, paddingTop: insets.top }}
+      >
+        <BlurHeaderBackground />
+        <View className="flex-row items-center px-5 pb-2 pt-2">
+          <View className="flex-1 flex-row items-center">
+            <GlassIconButton onPress={() => router.push("/settings")}>
+              <Settings size={20} color="#8B98A9" strokeWidth={1.75} />
+            </GlassIconButton>
+          </View>
+          <View className="flex-row items-center">
+            <Flame size={30} color="#F59E0B" strokeWidth={2.5} />
+            <View
+              pointerEvents="none"
+              className="absolute flex-row items-center"
+              style={{ left: 32, top: 0, bottom: 0 }}
+            >
+              <Text
+                numberOfLines={1}
+                style={{
+                  fontSize: 19,
+                  fontWeight: "900",
+                  fontStyle: "italic",
+                  color: "#FFFFFF",
+                  letterSpacing: -0.8,
+                  fontVariant: ["tabular-nums"],
+                  paddingRight: 6,
+                }}
+              >
+                {streak}
+              </Text>
+            </View>
+          </View>
+          <View className="flex-1 flex-row items-center justify-end">
+            <View>
+              <GlassIconButton onPress={() => router.push("/activity")}>
+                <Heart size={20} color="#8B98A9" strokeWidth={1.75} />
+              </GlassIconButton>
+              {pendingRequests > 0 && (
+                <View
+                  pointerEvents="none"
+                  className="absolute h-2.5 w-2.5 rounded-full bg-primary"
+                  style={{ top: 1, right: 1 }}
+                />
+              )}
+            </View>
+          </View>
+        </View>
+      </View>
+    </View>
   );
 }
+
+/**
+ * Circular glass icon button for the floating profile header (settings / heart).
+ * Uses expo-glass-effect on iOS 26+, falling back to a frosted expo-blur
+ * capsule with a bright rim and top sheen elsewhere. Never nests glass on glass.
+ */
+function GlassIconButton({
+  children,
+  onPress,
+}: {
+  children: React.ReactNode;
+  onPress: () => void;
+}) {
+  const inner = (
+    <Pressable
+      onPress={onPress}
+      hitSlop={8}
+      className="h-9 w-9 items-center justify-center active:opacity-60"
+    >
+      {children}
+    </Pressable>
+  );
+
+  // Real Liquid Glass: no manual blur, rim, or sheen — the effect provides them.
+  if (GLASS) {
+    return (
+      <GlassView glassEffectStyle="regular" isInteractive style={styles.glassButton}>
+        {inner}
+      </GlassView>
+    );
+  }
+
+  // Fallback for iOS < 26 / Android: frosted blur with a bright rim and sheen.
+  return (
+    <View className="overflow-hidden rounded-full border border-white/20">
+      <BlurView tint="systemUltraThinMaterialDark" intensity={60} style={StyleSheet.absoluteFill} />
+      <LinearGradient
+        colors={["rgba(255,255,255,0.18)", "rgba(255,255,255,0.04)", "rgba(255,255,255,0.08)"]}
+        locations={[0, 0.5, 1]}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
+      {inner}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  glassButton: {
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+});
 
 function WorkoutRow({ workout }: { workout: SessionRow }) {
   const ended = new Date(workout.ended_at);

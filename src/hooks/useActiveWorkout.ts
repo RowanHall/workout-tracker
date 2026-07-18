@@ -64,7 +64,15 @@ export function useActiveWorkout(userId: string | undefined) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      // Logged out (or not yet authenticated): clear any resumed workout so a
+      // stale pill can't linger, and stop the loading spinner.
+      setWorkout(null);
+      setEntries([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     let cancelled = false;
 
     async function resume() {

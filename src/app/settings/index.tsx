@@ -17,6 +17,7 @@ import { Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import { Avatar } from '@/components/Avatar';
 import { KovaLogo } from '@/components/KovaLogo';
 import { ProBadge } from '@/components/ProBadge';
+import { useHeaderInset } from '@/lib/blurHeader';
 import { formatWeight } from '@/lib/format';
 import { exportWorkoutsCsv } from '@/lib/export';
 import { LOCALES } from '@/lib/i18n';
@@ -33,6 +34,7 @@ export default function SettingsHubScreen() {
   const userId = session?.user.id;
   const { isPremium } = usePremium();
   const { t, locale } = useLanguage();
+  const headerInset = useHeaderInset();
   const currentLanguage = LOCALES.find((l) => l.code === locale)?.name ?? 'English';
 
   const displayName = profile?.display_name ?? profile?.username ?? '';
@@ -81,7 +83,7 @@ export default function SettingsHubScreen() {
   return (
     <ScrollView
       className="flex-1 bg-background"
-      contentContainerStyle={{ paddingBottom: 48 }}
+      contentContainerStyle={{ paddingTop: headerInset, paddingBottom: 48 }}
       showsVerticalScrollIndicator={false}
     >
       {!isPremium && (

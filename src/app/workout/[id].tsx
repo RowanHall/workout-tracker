@@ -9,6 +9,7 @@ import type { ShareStats } from '@/components/ShareableWorkoutCard';
 import { WorkoutOptionsMenu } from '@/components/WorkoutOptionsMenu';
 import { WorkoutPhotosCarousel } from '@/components/WorkoutPhotosCarousel';
 import { WorkoutShareSheet } from '@/components/WorkoutShareSheet';
+import { useHeaderInset } from '@/lib/blurHeader';
 import { formatDuration, formatVolume, timeAgo } from '@/lib/format';
 import { mergeMuscles } from '@/lib/muscles';
 import { supabase } from '@/lib/supabase';
@@ -78,10 +79,41 @@ function groupByExercise(sets: DetailSet[]): ExerciseGroup[] {
   return [...groups.values()];
 }
 
+interface MuscleGroupSlice {
+  group: MuscleGroup;
+  pct: number;
+}
+
+/**
+ * Share of the workout per muscle group, by volume (weight × reps). Pure
+ * bodyweight workouts (all zero volume) fall back to set counts so the split
+ * still reflects where the effort went.
+ */
+function muscleGroupBreakdown(exercises: ExerciseGroup[]): MuscleGroupSlice[] {
+  const totals = new Map<MuscleGroup, number>();
+  for (const ex of exercises) {
+    let volume = 0;
+    for (const set of ex.sets) volume += Number(set.weight) * set.reps;
+    totals.set(ex.muscleGroup, (totals.get(ex.muscleGroup) ?? 0) + volume);
+  }
+  let total = [...totals.values()].reduce((sum, v) => sum + v, 0);
+  if (total === 0) {
+    totals.clear();
+    for (const ex of exercises) {
+      totals.set(ex.muscleGroup, (totals.get(ex.muscleGroup) ?? 0) + ex.sets.length);
+    }
+    total = [...totals.values()].reduce((sum, v) => sum + v, 0);
+  }
+  return [...totals.entries()]
+    .map(([group, v]) => ({ group, pct: total === 0 ? 0 : (v / total) * 100 }))
+    .sort((a, b) => b.pct - a.pct);
+}
+
 export default function WorkoutDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session } = useAuth();
   const myId = session?.user.id ?? null;
+  const headerInset = useHeaderInset();
   const [workout, setWorkout] = useState<WorkoutDetail | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -133,6 +165,7 @@ export default function WorkoutDetailScreen() {
   const photoUrls = [...(workout.workout_photos ?? [])]
     .sort((a, b) => a.position - b.position)
     .map((p) => p.photo_url);
+  const breakdown = muscleGroupBreakdown(exercises);
 
   const shareStats: ShareStats = {
     workoutId: workout.id,
@@ -151,7 +184,7 @@ export default function WorkoutDetailScreen() {
     <>
       <ScrollView
         className="flex-1 bg-background"
-        contentContainerStyle={{ paddingBottom: 48 }}
+        contentContainerStyle={{ paddingTop: headerInset, paddingBottom: 48 }}
         showsVerticalScrollIndicator={false}
       >
         <IdentityRow
@@ -177,11 +210,27 @@ export default function WorkoutDetailScreen() {
 
         <View className="px-5 pt-6">
           <Text
-            className="text-[28px] font-bold text-white"
-            style={{ letterSpacing: -0.5 }}
+            className="text-[22px] font-bold text-white"
+            style={{ letterSpacing: -0.4 }}
           >
             {workout.title}
           </Text>
+        </View>
+
+        <View className="mt-3 mx-5 border-y border-white/5">
+          <View className="flex-row py-4">
+            {durationLabel && (
+              <>
+                <PillStat label="Time" value={durationLabel} />
+                <VBar />
+              </>
+            )}
+            <PillStat label="Volume" value={formatVolume(workout.total_volume)} />
+            <VBar />
+            <PillStat label="Sets" value={String(workout.total_sets)} />
+            <VBar />
+            <PillStat label="PRs" value={String(prCount)} highlight={prCount > 0} />
+          </View>
         </View>
 
         {photoUrls.length > 0 && (
@@ -190,26 +239,24 @@ export default function WorkoutDetailScreen() {
           </View>
         )}
 
-        <View className="mt-2 mx-5 border-y border-white/5">
-          <View className="flex-row py-5">
-            <PillStat label="Volume" value={formatVolume(workout.total_volume)} />
-            <VBar />
-            <PillStat label="Sets" value={String(workout.total_sets)} />
-            {durationLabel && (
-              <>
-                <VBar />
-                <PillStat label="Time" value={durationLabel} />
-              </>
-            )}
-            <VBar />
-            <PillStat label="PRs" value={String(prCount)} highlight={prCount > 0} />
-          </View>
-        </View>
-
         {combinedMuscles.length > 0 && (
           <Section label="Muscles Worked">
-            <View className="items-center rounded-2xl bg-surface py-5">
-              <MuscleMap muscles={combinedMuscles} />
+            <View className="flex-row items-center gap-4">
+              <View className="w-[130px] rounded-2xl bg-background">
+                <MuscleMap muscles={combinedMuscles} />
+              </View>
+              {breakdown.length > 0 && (
+                <View className="flex-1 gap-2.5">
+                  {breakdown.slice(0, 6).map((row) => (
+                    <BarRow
+                      key={row.group}
+                      label={MUSCLE_LABELS[row.group]}
+                      pct={row.pct}
+                      width={(row.pct / breakdown[0].pct) * 100}
+                    />
+                  ))}
+                </View>
+              )}
             </View>
           </Section>
         )}
@@ -320,13 +367,13 @@ function PillStat({
   return (
     <View className="flex-1 items-center px-1">
       <Text
-        className={`text-[22px] font-extrabold ${highlight ? 'text-accent' : 'text-white'}`}
-        style={{ letterSpacing: -0.5, fontVariant: ['tabular-nums'] }}
+        className={`text-[17px] font-extrabold ${highlight ? 'text-accent' : 'text-white'}`}
+        style={{ letterSpacing: -0.3, fontVariant: ['tabular-nums'] }}
         numberOfLines={1}
       >
         {value}
       </Text>
-      <Text className="mt-0.5 text-[10px] font-semibold uppercase tracking-[2px] text-muted">
+      <Text className="mt-0.5 text-[9px] font-semibold uppercase tracking-[1.5px] text-muted">
         {label}
       </Text>
     </View>
@@ -335,6 +382,27 @@ function PillStat({
 
 function VBar() {
   return <View className="w-px bg-white/5" />;
+}
+
+function BarRow({ label, pct, width }: { label: string; pct: number; width: number }) {
+  return (
+    <View>
+      <View className="mb-1.5 flex-row items-baseline justify-between">
+        <Text className="text-[13px] text-white" numberOfLines={1}>
+          {label}
+        </Text>
+        <Text className="text-[13px] text-muted" style={{ fontVariant: ['tabular-nums'] }}>
+          {pct.toFixed(0)}%
+        </Text>
+      </View>
+      <View className="h-1.5 overflow-hidden rounded-full bg-white/5">
+        <View
+          className="h-full rounded-full bg-primary"
+          style={{ width: `${Math.max(3, Math.round(width))}%` }}
+        />
+      </View>
+    </View>
+  );
 }
 
 function ExerciseBlock({

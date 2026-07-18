@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 
 import { Avatar } from "@/components/Avatar";
+import { useHeaderInset } from "@/lib/blurHeader";
 import { timeAgo } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import type { Profile } from "@/lib/types";
@@ -29,6 +30,7 @@ type ActivityItem =
 export default function ActivityScreen() {
   const { session } = useAuth();
   const myId = session?.user.id;
+  const headerInset = useHeaderInset();
 
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
@@ -145,7 +147,7 @@ export default function ActivityScreen() {
   return (
     <ScrollView
       className="flex-1 bg-background"
-      contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+      contentContainerStyle={{ paddingTop: headerInset + 16, paddingHorizontal: 16, paddingBottom: 40 }}
       showsVerticalScrollIndicator={false}
     >
       {requests.length > 0 && (

@@ -1,15 +1,32 @@
-import { useFocusEffect } from 'expo-router';
-import { Lock } from 'lucide-react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { Check, ChevronDown, Lock } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 
-import { PremiumGate } from '@/components/PremiumGate';
+import { ProBadge } from '@/components/ProBadge';
 import { RadarChart, type RadarAxis } from '@/components/RadarChart';
+import { useHeaderInset } from '@/lib/blurHeader';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/AuthProvider';
 import { usePremium } from '@/providers/PremiumProvider';
 
-type Range = 'week' | 'all';
+type Range = '7d' | '30d' | '3m' | '1y' | 'all';
+
+const RANGE_LABELS: Record<Range, string> = {
+  '7d': 'Last 7 days',
+  '30d': 'Last 30 days',
+  '3m': 'Last 3 months',
+  '1y': 'Last year',
+  all: 'All time',
+};
+const RANGE_OPTIONS: Range[] = ['7d', '30d', '3m', '1y', 'all'];
+const PREMIUM_RANGES: Range[] = ['1y', 'all'];
+
+/** Epoch ms cutoff for a range; `0` means no cutoff (all time). */
+function rangeCutoff(range: Range): number {
+  const days: Record<Range, number> = { '7d': 7, '30d': 30, '3m': 90, '1y': 365, all: 0 };
+  return days[range] === 0 ? 0 : Date.now() - days[range] * 86_400_000;
+}
 
 const RADAR_GROUPS = ['Chest', 'Back', 'Delts', 'Arms', 'Legs', 'Core'] as const;
 type RadarGroup = (typeof RADAR_GROUPS)[number];
@@ -52,10 +69,10 @@ export default function MuscleDistributionScreen() {
   const { session } = useAuth();
   const { isPremium } = usePremium();
   const userId = session?.user.id;
+  const headerInset = useHeaderInset();
 
-  const [range, setRange] = useState<Range>('week');
+  const [range, setRange] = useState<Range>('7d');
   const [sets, setSets] = useState<SetRow[]>([]);
-  const allTimeLocked = range === 'all' && !isPremium;
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -73,7 +90,7 @@ export default function MuscleDistributionScreen() {
     }, [load])
   );
 
-  const cutoff = range === 'week' ? Date.now() - 7 * 86_400_000 : 0;
+  const cutoff = rangeCutoff(range);
   const filtered = sets.filter(
     (s) => s.workouts && new Date(s.workouts.ended_at).getTime() >= cutoff
   );
@@ -103,47 +120,25 @@ export default function MuscleDistributionScreen() {
     <View className="flex-1 bg-background">
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 48 }}
+        contentContainerStyle={{ paddingTop: headerInset, paddingBottom: 48 }}
       >
-        <Section label="Range">
-          <View className="flex-row gap-2 rounded-2xl bg-surface-2 p-1">
-            <RangeTab label="Last 7 days" active={range === 'week'} onPress={() => setRange('week')} />
-            <RangeTab
-              label="All time"
-              active={range === 'all'}
-              onPress={() => setRange('all')}
-              locked={!isPremium}
-            />
+        <View className="items-center px-5 pt-7">
+          <RangeDropdown value={range} onChange={setRange} isPremium={isPremium} />
+        </View>
+
+        <View className="px-5 pt-4">
+          <View className="rounded-2xl bg-background p-6">
+            {radarPeak > 0 ? (
+              <RadarChart data={data} />
+            ) : (
+              <Text className="py-16 text-center text-sm text-muted">
+                No sets logged in this range yet.
+              </Text>
+            )}
           </View>
-        </Section>
+        </View>
 
-        <Section
-          label="Distribution"
-          eyebrowSuffix={range === 'week' ? 'last 7 days' : 'lifetime'}
-        >
-          {allTimeLocked ? (
-            <PremiumGate
-              title="Lifetime Distribution"
-              description="See your training balance across your full lifting history."
-            >
-              <View className="rounded-2xl bg-surface p-6">
-                <RadarChart data={data} />
-              </View>
-            </PremiumGate>
-          ) : (
-            <View className="rounded-2xl bg-surface p-6">
-              {radarPeak > 0 ? (
-                <RadarChart data={data} />
-              ) : (
-                <Text className="py-16 text-center text-sm text-muted">
-                  No sets logged in this range yet.
-                </Text>
-              )}
-            </View>
-          )}
-        </Section>
-
-        {breakdown.length > 0 && !allTimeLocked && (
+        {breakdown.length > 0 && (
           <Section label="Breakdown" eyebrowSuffix="by volume">
             <View className="gap-3">
               {breakdown.map((row) => (
@@ -162,31 +157,85 @@ export default function MuscleDistributionScreen() {
   );
 }
 
-function RangeTab({
-  label,
-  active,
-  onPress,
-  locked,
+function RangeDropdown({
+  value,
+  onChange,
+  isPremium,
 }: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-  locked?: boolean;
+  value: Range;
+  onChange: (next: Range) => void;
+  isPremium: boolean;
 }) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <Pressable
-      onPress={onPress}
-      className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-xl py-2.5 ${active ? 'bg-primary' : ''}`}
-    >
-      <Text
-        className={`text-[13px] font-semibold ${active ? 'text-background' : 'text-muted'}`}
+    <>
+      <Pressable
+        onPress={() => setOpen(true)}
+        hitSlop={8}
+        className="flex-row items-center gap-1.5 rounded-full bg-surface-2 px-4 py-2 active:opacity-70"
       >
-        {label}
-      </Text>
-      {locked && (
-        <Lock size={11} color={active ? '#0B0F14' : '#8B98A9'} strokeWidth={2.5} />
-      )}
-    </Pressable>
+        <Text className="text-[13px] font-semibold text-white">{RANGE_LABELS[value]}</Text>
+        <ChevronDown size={15} color="#8B98A9" strokeWidth={2.5} />
+      </Pressable>
+
+      <Modal
+        visible={open}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOpen(false)}
+      >
+        <Pressable
+          className="flex-1 items-center justify-center bg-black/60 px-10"
+          onPress={() => setOpen(false)}
+        >
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            className="w-full max-w-[280px] overflow-hidden rounded-2xl bg-surface"
+          >
+            <View className="border-b border-white/5 px-4 py-3">
+              <Text className="text-[11px] font-bold uppercase tracking-[2.5px] text-muted">
+                Range
+              </Text>
+            </View>
+            {RANGE_OPTIONS.map((opt) => {
+              const selected = opt === value;
+              const locked = !isPremium && PREMIUM_RANGES.includes(opt);
+              return (
+                <Pressable
+                  key={opt}
+                  onPress={() => {
+                    setOpen(false);
+                    if (locked) {
+                      router.push('/paywall');
+                      return;
+                    }
+                    onChange(opt);
+                  }}
+                  className="flex-row items-center justify-between border-b border-white/5 px-4 py-3.5 active:opacity-70"
+                >
+                  <Text
+                    className={`text-[15px] ${
+                      selected ? 'font-bold text-primary' : locked ? 'text-muted' : 'text-white'
+                    }`}
+                  >
+                    {RANGE_LABELS[opt]}
+                  </Text>
+                  {locked ? (
+                    <View className="flex-row items-center gap-1.5">
+                      <Lock size={12} color="#F59E0B" strokeWidth={2.5} />
+                      <ProBadge />
+                    </View>
+                  ) : selected ? (
+                    <Check size={16} color="#22C55E" strokeWidth={2.5} />
+                  ) : null}
+                </Pressable>
+              );
+            })}
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
   );
 }
 
@@ -196,7 +245,7 @@ function Section({
   children,
 }: {
   label: string;
-  eyebrowSuffix?: string;
+  eyebrowSuffix?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -205,10 +254,12 @@ function Section({
         <Text className="text-[11px] font-bold uppercase tracking-[2.5px] text-muted">
           {label}
         </Text>
-        {eyebrowSuffix && (
+        {typeof eyebrowSuffix === 'string' ? (
           <Text className="text-[11px] font-medium uppercase tracking-[1.5px] text-muted/70">
             {eyebrowSuffix}
           </Text>
+        ) : (
+          eyebrowSuffix
         )}
       </View>
       {children}

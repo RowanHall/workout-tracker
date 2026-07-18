@@ -14,6 +14,7 @@ import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, View } fr
 import { Avatar } from "@/components/Avatar";
 import { MuscleMap } from "@/components/MuscleMap";
 import { RadarChart, type RadarAxis } from "@/components/RadarChart";
+import { useHeaderInset } from "@/lib/blurHeader";
 import { VolumeHeatmap } from "@/components/VolumeHeatmap";
 import { formatDuration, formatVolume, timeAgo } from "@/lib/format";
 import { mergeMuscles } from "@/lib/muscles";
@@ -78,6 +79,7 @@ export default function UserProfileScreen() {
   const { session } = useAuth();
   const myId = session?.user.id;
   const isSelf = id === myId;
+  const headerInset = useHeaderInset();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [stats, setStats] = useState<FriendStats | null>(null);
@@ -325,7 +327,11 @@ export default function UserProfileScreen() {
   const hiddenByPrivacy = !isSelf && followState !== "following" && stats?.workouts === 0;
 
   return (
-    <ScrollView className="flex-1 bg-background" contentContainerClassName="p-4 pb-8">
+    <ScrollView
+      className="flex-1 bg-background"
+      contentContainerClassName="p-4 pb-8"
+      contentContainerStyle={{ paddingTop: headerInset + 16 }}
+    >
       <View className="-mt-1 mb-2 flex-row items-center">
         <View className="flex-1" />
         {!isBlocked && !isPrivate && (

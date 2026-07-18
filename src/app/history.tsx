@@ -3,6 +3,7 @@ import { ChevronRight, Medal } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
 
+import { useHeaderInset } from '@/lib/blurHeader';
 import { formatDuration, formatVolume } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 import type { Workout } from '@/lib/types';
@@ -17,6 +18,7 @@ interface HistoryWorkout extends Workout {
 export default function HistoryScreen() {
   const { session } = useAuth();
   const userId = session?.user.id;
+  const headerInset = useHeaderInset();
 
   const [workouts, setWorkouts] = useState<HistoryWorkout[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -70,6 +72,7 @@ export default function HistoryScreen() {
         data={workouts}
         keyExtractor={(item) => item.id}
         contentContainerClassName="p-4 pb-8"
+        contentContainerStyle={{ paddingTop: headerInset + 16 }}
         onEndReached={loadMore}
         onEndReachedThreshold={0.4}
         renderItem={({ item }) => <HistoryRow workout={item} />}

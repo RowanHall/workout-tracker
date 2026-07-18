@@ -1,16 +1,18 @@
 import { Check } from 'lucide-react-native';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
+import { useHeaderInset } from '@/lib/blurHeader';
 import { LOCALES, type LocaleCode } from '@/lib/i18n';
 import { useLanguage } from '@/providers/LanguageProvider';
 
 export default function LanguageSettingsScreen() {
   const { locale, setLocale, t } = useLanguage();
+  const headerInset = useHeaderInset();
 
   return (
     <ScrollView
       className="flex-1 bg-background"
-      contentContainerStyle={{ paddingBottom: 48 }}
+      contentContainerStyle={{ paddingTop: headerInset, paddingBottom: 48 }}
       showsVerticalScrollIndicator={false}
     >
       <View className="px-5 pt-6">

@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { useHeaderInset } from '@/lib/blurHeader';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/AuthProvider';
 
 export default function AccountSettingsScreen() {
   const { session, profile } = useAuth();
+  const headerInset = useHeaderInset();
   const [deleting, setDeleting] = useState(false);
 
   function handleDeleteAccount() {
@@ -35,7 +37,7 @@ export default function AccountSettingsScreen() {
   return (
     <ScrollView
       className="flex-1 bg-background"
-      contentContainerStyle={{ paddingBottom: 48 }}
+      contentContainerStyle={{ paddingTop: headerInset, paddingBottom: 48 }}
       showsVerticalScrollIndicator={false}
     >
       <View className="px-5 pt-7">

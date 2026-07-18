@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { LineChart, type LinePoint } from '@/components/LineChart';
+import { useHeaderInset } from '@/lib/blurHeader';
 import { NewExerciseModal } from '@/components/NewExerciseModal';
 import { RangePicker, rangeCutoff, type Range } from '@/components/RangePicker';
 import { formatVolume } from '@/lib/format';
@@ -70,6 +71,7 @@ export default function ExerciseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session } = useAuth();
   const userId = session?.user.id;
+  const headerInset = useHeaderInset();
 
   const [data, setData] = useState<ExerciseData | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -220,7 +222,11 @@ export default function ExerciseDetailScreen() {
   const canEdit = data.record.is_custom && data.createdBy === userId;
 
   return (
-    <ScrollView className="flex-1 bg-background" contentContainerClassName="p-4 pb-8">
+    <ScrollView
+      className="flex-1 bg-background"
+      contentContainerClassName="p-4 pb-8"
+      contentContainerStyle={{ paddingTop: headerInset + 16 }}
+    >
       <Stack.Screen
         options={{
           title: data.name,
@@ -277,6 +283,7 @@ export default function ExerciseDetailScreen() {
           <LineChart
             data={trendSeries}
             color="#22C55E"
+            surfaceColor="#0B0F14"
             formatLabel={metric === 'volume' ? formatVolumeShort : lbsLabel}
             formatXLabel={formatDateLabel}
           />
@@ -299,6 +306,7 @@ export default function ExerciseDetailScreen() {
             color="#F59E0B"
             markers={prMarkers}
             markerColor="#FBBF24"
+            surfaceColor="#0B0F14"
             formatLabel={lbsLabel}
             formatXLabel={formatDateLabel}
           />
@@ -385,7 +393,7 @@ function MaxCard({
   color: string;
 }) {
   return (
-    <View className="flex-1 rounded-2xl bg-surface p-4">
+    <View className="flex-1 rounded-2xl bg-background p-4">
       <Text className="text-[11px] font-semibold uppercase tracking-wider text-muted">
         {label}
       </Text>
@@ -410,7 +418,7 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <View className="mb-4 rounded-2xl bg-surface p-4">
+    <View className="mb-4 rounded-2xl bg-background p-4">
       <View className="mb-3 flex-row items-start justify-between gap-3">
         <View className="flex-1">
           <Text className="text-base font-bold text-white">{title}</Text>

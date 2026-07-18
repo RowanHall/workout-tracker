@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 
 import { Avatar } from "@/components/Avatar";
+import { useHeaderInset } from "@/lib/blurHeader";
 import { supabase } from "@/lib/supabase";
 import type { Profile } from "@/lib/types";
 import { useAuth } from "@/providers/AuthProvider";
@@ -14,6 +15,7 @@ export default function ConnectionsScreen() {
   const { session } = useAuth();
   const myId = session?.user.id;
   const targetId = params.userId ?? myId;
+  const headerInset = useHeaderInset();
 
   const [tab, setTab] = useState<Tab>(params.tab === "following" ? "following" : "followers");
   const [followers, setFollowers] = useState<Profile[]>([]);
@@ -119,7 +121,7 @@ export default function ConnectionsScreen() {
         <FlatList
           data={data}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: 16, paddingTop: 12 }}
+          contentContainerStyle={{ padding: 16, paddingTop: headerInset + 12 }}
           renderItem={({ item }) => {
             const isSelf = item.id === myId;
             const isFollowing = followedIds.has(item.id);

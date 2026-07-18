@@ -1,26 +1,17 @@
 import { router, useFocusEffect } from 'expo-router';
-import {
-  AlertTriangle,
-  ChevronRight,
-  Hexagon,
-  Minus,
-  PersonStanding,
-  TrendingUp,
-} from 'lucide-react-native';
+import { ChevronRight, Hexagon, PersonStanding } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { BodyWeightCard } from '@/components/BodyWeightCard';
-import { PremiumGate } from '@/components/PremiumGate';
-import { ProBadge } from '@/components/ProBadge';
 import { RangePicker, type Range } from '@/components/RangePicker';
 import {
   WeeklyVolumeChart,
   type VolumeGranularity,
   type WeekVolume,
 } from '@/components/WeeklyVolumeChart';
+import { useHeaderInset } from '@/lib/blurHeader';
 import { formatVolume } from '@/lib/format';
-import { computeInsights, type Insights } from '@/lib/insights';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -82,6 +73,7 @@ const MUSCLE_LABELS: Record<string, string> = {
 export default function StatsScreen() {
   const { session, profile } = useAuth();
   const userId = session?.user.id;
+  const headerInset = useHeaderInset();
 
   const [totalWorkouts, setTotalWorkouts] = useState(0);
   const [allWorkouts, setAllWorkouts] = useState<SessionRow[]>([]);
@@ -89,7 +81,6 @@ export default function StatsScreen() {
   const [bestLifts, setBestLifts] = useState<BestLift[]>([]);
   const [muscleSplit, setMuscleSplit] = useState<MuscleShare[]>([]);
   const [records, setRecords] = useState<Records | null>(null);
-  const [insights, setInsights] = useState<Insights | null>(null);
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -162,21 +153,6 @@ export default function StatsScreen() {
       mostSetsInSession: workouts.reduce((m, w) => Math.max(m, w.total_sets), 0),
       favoriteExercise,
     });
-
-    setInsights(
-      computeInsights(
-        sets
-          .filter((s) => s.exercises && s.workouts)
-          .map((s) => ({
-            weight: Number(s.weight),
-            reps: s.reps,
-            exerciseId: s.exercise_id,
-            exerciseName: s.exercises!.name,
-            muscleGroup: s.exercises!.muscle_group,
-            endedAt: new Date(s.workouts!.ended_at).getTime(),
-          }))
-      )
-    );
   }, [userId]);
 
   useFocusEffect(
@@ -197,7 +173,7 @@ export default function StatsScreen() {
     <View className="flex-1 bg-background">
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 48 }}
+        contentContainerStyle={{ paddingTop: headerInset, paddingBottom: 48 }}
       >
         <View className="px-5 pt-5">
           <BodyWeightCard userId={userId} />
@@ -287,23 +263,10 @@ export default function StatsScreen() {
             </View>
           }
         >
-          <View className="rounded-2xl bg-surface p-4">
+          <View className="pt-1">
             <WeeklyVolumeChart data={volumeBuckets} granularity={volumeGranularity} />
           </View>
         </Section>
-
-        {insights && hasInsights(insights) && (
-          <Section label="Coach Insights" eyebrowSuffix={<ProBadge />}>
-            <View className="rounded-2xl bg-surface p-4">
-              <PremiumGate
-                title="Smart Insights"
-                description="Spot overdue muscles, stalled lifts, and hot streaks before they bite you."
-              >
-                <InsightsList insights={insights} />
-              </PremiumGate>
-            </View>
-          </Section>
-        )}
       </ScrollView>
     </View>
   );
@@ -435,76 +398,6 @@ function BarRow({
   );
 }
 
-function InsightsList({ insights }: { insights: Insights }) {
-  return (
-    <View className="gap-2">
-      {insights.overdue.slice(0, 3).map((item) => (
-        <InsightRow
-          key={`overdue-${item.muscleGroup}`}
-          icon={<AlertTriangle size={18} color="#F59E0B" strokeWidth={2} />}
-          title={`${MUSCLE_LABELS[item.muscleGroup] ?? item.muscleGroup.replace('_', ' ')} is overdue`}
-          subtitle={`${item.daysSince} days since last session · usually every ${item.avgInterval}`}
-        />
-      ))}
-      {insights.hotStreaks.map((item) => (
-        <InsightRow
-          key={`hot-${item.exerciseId}`}
-          icon={<TrendingUp size={18} color="#22C55E" strokeWidth={2} />}
-          title={item.exerciseName}
-          subtitle={`+${Math.round(item.delta)} lbs e1RM in the last 2 weeks → ${Math.round(item.currentE1rm)} lbs`}
-          onPress={() => router.push(`/exercise/${item.exerciseId}`)}
-        />
-      ))}
-      {insights.plateaued.map((item) => (
-        <InsightRow
-          key={`plateau-${item.exerciseId}`}
-          icon={<Minus size={18} color="#8B98A9" strokeWidth={2} />}
-          title={item.exerciseName}
-          subtitle={`Stalled at ${Math.round(item.currentE1rm)} lbs for ${item.weeksAgo}+ weeks — try a deload or rep change`}
-          onPress={() => router.push(`/exercise/${item.exerciseId}`)}
-        />
-      ))}
-    </View>
-  );
-}
-
-function InsightRow({
-  icon,
-  title,
-  subtitle,
-  onPress,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  subtitle: string;
-  onPress?: () => void;
-}) {
-  const content = (
-    <View className="flex-row items-center gap-3 rounded-xl bg-surface-2 px-3 py-2.5">
-      <View className="h-8 w-8 items-center justify-center rounded-lg bg-surface">
-        {icon}
-      </View>
-      <View className="flex-1">
-        <Text className="font-semibold text-white" numberOfLines={1}>
-          {title}
-        </Text>
-        <Text className="mt-0.5 text-xs text-muted" numberOfLines={2}>
-          {subtitle}
-        </Text>
-      </View>
-      {onPress && <ChevronRight size={16} color="#8B98A9" strokeWidth={2} />}
-    </View>
-  );
-  if (onPress) {
-    return (
-      <Pressable onPress={onPress} className="active:opacity-70">
-        {content}
-      </Pressable>
-    );
-  }
-  return content;
-}
-
 function buildVolumeBuckets(workouts: SessionRow[], range: Range): WeekVolume[] {
   if (range === '3m') return buildWeeklyBuckets(workouts, 12);
   if (range === '1y') return buildMonthlyBuckets(workouts, 12);
@@ -575,10 +468,3 @@ function formatMinutes(minutes: number): string {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
-function hasInsights(insights: Insights): boolean {
-  return (
-    insights.overdue.length > 0 ||
-    insights.plateaued.length > 0 ||
-    insights.hotStreaks.length > 0
-  );
-}

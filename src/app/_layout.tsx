@@ -4,6 +4,9 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
 
+import { ActiveWorkoutSheet } from '@/components/ActiveWorkoutSheet';
+import { blurHeaderOptions } from '@/lib/blurHeader';
+import { ActiveWorkoutProvider } from '@/providers/ActiveWorkoutProvider';
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
 import { LanguageProvider, useLanguage } from '@/providers/LanguageProvider';
 import { NotificationsManager } from '@/providers/NotificationsManager';
@@ -46,19 +49,15 @@ function RootNavigator() {
           name="people"
           options={{
             presentation: 'modal',
-            headerShown: true,
+            ...blurHeaderOptions,
             title: 'Find Friends',
-            headerStyle: { backgroundColor: '#0B0F14' },
-            headerTintColor: '#FFFFFF',
           }}
         />
         <Stack.Screen
           name="workout/[id]"
           options={{
-            headerShown: true,
+            ...blurHeaderOptions,
             title: 'Workout',
-            headerStyle: { backgroundColor: '#0B0F14' },
-            headerTintColor: '#FFFFFF',
           }}
         />
         <Stack.Screen
@@ -78,154 +77,120 @@ function RootNavigator() {
         <Stack.Screen
           name="settings/index"
           options={{
-            headerShown: true,
+            ...blurHeaderOptions,
             title: t('settings.title'),
-            headerStyle: { backgroundColor: '#0B0F14' },
-            headerTintColor: '#FFFFFF',
           }}
         />
         <Stack.Screen
           name="settings/language"
           options={{
-            headerShown: true,
+            ...blurHeaderOptions,
             title: t('language.title'),
-            headerStyle: { backgroundColor: '#0B0F14' },
-            headerTintColor: '#FFFFFF',
           }}
         />
         <Stack.Screen
           name="settings/profile"
           options={{
-            headerShown: true,
+            ...blurHeaderOptions,
             title: 'Profile',
-            headerStyle: { backgroundColor: '#0B0F14' },
-            headerTintColor: '#FFFFFF',
           }}
         />
         <Stack.Screen
           name="settings/account"
           options={{
-            headerShown: true,
+            ...blurHeaderOptions,
             title: 'Account',
-            headerStyle: { backgroundColor: '#0B0F14' },
-            headerTintColor: '#FFFFFF',
           }}
         />
         <Stack.Screen
           name="settings/notifications"
           options={{
-            headerShown: true,
+            ...blurHeaderOptions,
             title: t('notifications.title'),
-            headerStyle: { backgroundColor: '#0B0F14' },
-            headerTintColor: '#FFFFFF',
           }}
         />
         <Stack.Screen
           name="settings/body-weight"
           options={{
-            headerShown: true,
+            ...blurHeaderOptions,
             title: t('settings.row.bodyWeight'),
-            headerStyle: { backgroundColor: '#0B0F14' },
-            headerTintColor: '#FFFFFF',
           }}
         />
         <Stack.Screen
           name="settings/membership"
           options={{
-            headerShown: true,
+            ...blurHeaderOptions,
             title: 'Manage Membership',
-            headerStyle: { backgroundColor: '#0B0F14' },
-            headerTintColor: '#FFFFFF',
           }}
         />
         <Stack.Screen
           name="settings/blocked"
           options={{
-            headerShown: true,
+            ...blurHeaderOptions,
             title: 'Blocked Accounts',
-            headerStyle: { backgroundColor: '#0B0F14' },
-            headerTintColor: '#FFFFFF',
           }}
         />
         <Stack.Screen
           name="history"
           options={{
-            headerShown: true,
+            ...blurHeaderOptions,
             title: 'Workout History',
-            headerStyle: { backgroundColor: '#0B0F14' },
-            headerTintColor: '#FFFFFF',
           }}
         />
         <Stack.Screen
           name="exercises"
           options={{
-            headerShown: true,
+            ...blurHeaderOptions,
             title: 'Exercises',
-            headerStyle: { backgroundColor: '#0B0F14' },
-            headerTintColor: '#FFFFFF',
           }}
         />
         <Stack.Screen
           name="stats"
           options={{
-            headerShown: true,
+            ...blurHeaderOptions,
             title: 'Stats',
-            headerStyle: { backgroundColor: '#0B0F14' },
-            headerTintColor: '#FFFFFF',
           }}
         />
         <Stack.Screen
           name="muscle-map"
           options={{
-            headerShown: true,
+            ...blurHeaderOptions,
             title: 'Muscle Map',
-            headerStyle: { backgroundColor: '#0B0F14' },
-            headerTintColor: '#FFFFFF',
           }}
         />
         <Stack.Screen
           name="muscle-distribution"
           options={{
-            headerShown: true,
+            ...blurHeaderOptions,
             title: 'Muscle Distribution',
-            headerStyle: { backgroundColor: '#0B0F14' },
-            headerTintColor: '#FFFFFF',
           }}
         />
         <Stack.Screen
           name="exercise/[id]"
           options={{
-            headerShown: true,
+            ...blurHeaderOptions,
             title: 'Exercise',
-            headerStyle: { backgroundColor: '#0B0F14' },
-            headerTintColor: '#FFFFFF',
           }}
         />
         <Stack.Screen
           name="user/[id]"
           options={{
-            headerShown: true,
+            ...blurHeaderOptions,
             title: 'Profile',
-            headerStyle: { backgroundColor: '#0B0F14' },
-            headerTintColor: '#FFFFFF',
           }}
         />
         <Stack.Screen
           name="connections"
           options={{
-            headerShown: true,
+            ...blurHeaderOptions,
             title: 'Connections',
-            headerStyle: { backgroundColor: '#0B0F14' },
-            headerTintColor: '#FFFFFF',
           }}
         />
         <Stack.Screen
           name="activity"
           options={{
-            headerShown: true,
+            ...blurHeaderOptions,
             title: 'Activity',
-            headerStyle: { backgroundColor: '#0B0F14' },
-            headerTintColor: '#FFFFFF',
           }}
         />
       </Stack.Protected>
@@ -233,6 +198,10 @@ function RootNavigator() {
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
       </Stack>
+      {/* Global active-workout pull-up sheet — floats over every screen so the
+          workout can be dropped to the pill and resumed without leaving the
+          current tab. */}
+      {session && !needsOnboarding && <ActiveWorkoutSheet />}
     </>
   );
 }
@@ -242,8 +211,10 @@ export default function RootLayout() {
     <LanguageProvider>
       <AuthProvider>
         <PremiumProvider>
-          <StatusBar style="light" />
-          <RootNavigator />
+          <ActiveWorkoutProvider>
+            <StatusBar style="light" />
+            <RootNavigator />
+          </ActiveWorkoutProvider>
         </PremiumProvider>
       </AuthProvider>
     </LanguageProvider>

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
+import { useHeaderInset } from '@/lib/blurHeader';
 import { supabase } from '@/lib/supabase';
 import type { Profile } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
@@ -10,6 +11,7 @@ import { useAuth } from '@/providers/AuthProvider';
 export default function PeopleScreen() {
   const { session } = useAuth();
   const userId = session?.user.id;
+  const headerInset = useHeaderInset();
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<Profile[]>([]);
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
@@ -82,7 +84,10 @@ export default function PeopleScreen() {
   }
 
   return (
-    <View className="flex-1 bg-background px-4 pt-4">
+    <View
+      className="flex-1 bg-background px-4 pt-4"
+      style={{ paddingTop: headerInset + 16 }}
+    >
       <TextInput
         className="mb-4 rounded-xl border border-border bg-surface px-4 py-3 text-base text-white"
         placeholder="Search by username…"

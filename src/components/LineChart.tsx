@@ -3,6 +3,7 @@ import { LayoutChangeEvent, View } from 'react-native';
 import Svg, {
   Circle,
   Defs,
+  Line,
   LinearGradient,
   Path,
   Polyline,
@@ -20,15 +21,16 @@ export interface LinePoint {
 const PAD_TOP = 14;
 const PAD_BOTTOM = 18;
 const PAD_BOTTOM_WITH_LABELS = 30;
-const PAD_LEFT = 8;
-const PAD_RIGHT = 40;
+const PAD_LEFT = 34;
+const PAD_RIGHT = 12;
 const X_LABEL_MIN_SPACING = 56;
 
 /**
  * Generic single-series line chart over an SVG. The x-axis is scaled by the
- * raw `t` values so unevenly spaced points land in the right place; the
- * y-axis is padded above/below the range so the line never touches the edge.
- * Expects at least one point (callers handle the empty state).
+ * raw `t` values so unevenly spaced points land in the right place; the y-axis
+ * is snapped to "nice" round tick values with horizontal reference gridlines
+ * and labels down the left edge. Expects at least one point (callers handle the
+ * empty state).
  */
 export function LineChart({
   data,
@@ -36,6 +38,7 @@ export function LineChart({
   markerColor = '#F59E0B',
   markers,
   height = 150,
+  surfaceColor = '#151B23',
   formatLabel = (v) => String(Math.round(v)),
   formatXLabel,
 }: {
@@ -46,6 +49,8 @@ export function LineChart({
   /** Indices into `data` that should render as a larger star-style highlight. */
   markers?: number[];
   height?: number;
+  /** Color the dots/markers punch out against — should match the card behind the chart. */
+  surfaceColor?: string;
   formatLabel?: (v: number) => string;
   /** When provided, renders date labels at the bottom for a subset of points. */
   formatXLabel?: (t: number) => string;
@@ -67,9 +72,9 @@ export function LineChart({
   const xSpan = maxX - minX || 1;
   const minY = Math.min(...ys);
   const maxY = Math.max(...ys);
-  const yPad = (maxY - minY || 2) * 0.18;
-  const lo = minY - yPad;
-  const hi = maxY + yPad;
+
+  // Snap the y-domain to round tick values so gridlines and labels read cleanly.
+  const { ticks, lo, hi } = niceTicks(minY, maxY, 4);
 
   const plotW = Math.max(0, width - PAD_LEFT - PAD_RIGHT);
   const padBottom = formatXLabel ? PAD_BOTTOM_WITH_LABELS : PAD_BOTTOM;
@@ -112,6 +117,8 @@ export function LineChart({
     linePoints.map((p) => `L ${p.px},${p.py}`).join(' ') +
     ` L ${linePoints[linePoints.length - 1].px},${plotBottom} Z`;
 
+  const gridRight = PAD_LEFT + plotW;
+
   return (
     <View onLayout={onLayout}>
       {width > 0 && (
@@ -123,26 +130,34 @@ export function LineChart({
             </LinearGradient>
           </Defs>
 
-          {single ? (
+          {/* Reference gridlines + y-axis labels */}
+          {ticks.map((t, i) => {
+            const gy = y(t);
+            const isBase = i === 0;
+            return (
+              <Line
+                key={`grid-${t}`}
+                x1={PAD_LEFT}
+                y1={gy}
+                x2={gridRight}
+                y2={gy}
+                stroke="#FFFFFF"
+                strokeOpacity={isBase ? 0.12 : 0.06}
+              />
+            );
+          })}
+          {ticks.map((t) => (
             <SvgText
-              x={width - 4}
-              y={points[0].py - 8}
+              key={`ylab-${t}`}
+              x={PAD_LEFT - 6}
+              y={y(t) + 3.5}
               fill="#8B98A9"
               fontSize={10}
               textAnchor="end"
             >
-              {formatLabel(maxY)}
+              {formatLabel(t)}
             </SvgText>
-          ) : (
-            <>
-              <SvgText x={width - 4} y={PAD_TOP + 4} fill="#8B98A9" fontSize={10} textAnchor="end">
-                {formatLabel(maxY)}
-              </SvgText>
-              <SvgText x={width - 4} y={plotBottom} fill="#8B98A9" fontSize={10} textAnchor="end">
-                {formatLabel(minY)}
-              </SvgText>
-            </>
-          )}
+          ))}
 
           <Path d={areaPath} fill={`url(#${gradientId})`} />
           <Polyline
@@ -165,7 +180,7 @@ export function LineChart({
                   cy={p.py}
                   r={5.5}
                   fill={markerColor}
-                  stroke="#151B23"
+                  stroke={surfaceColor}
                   strokeWidth={2}
                 />
               );
@@ -176,7 +191,7 @@ export function LineChart({
                 cx={p.px}
                 cy={p.py}
                 r={isLast ? 4.5 : 3}
-                fill={isLast ? color : '#151B23'}
+                fill={isLast ? color : surfaceColor}
                 stroke={color}
                 strokeWidth={2}
               />
@@ -205,4 +220,33 @@ export function LineChart({
       )}
     </View>
   );
+}
+
+/**
+ * Snap a [min, max] value range to evenly-spaced "nice" tick values (…1, 2,
+ * 2.5, 5, 10… × a power of ten) whose bounds fully contain the data. Returns
+ * the tick list plus the padded lo/hi domain used to scale the y-axis, so the
+ * line sits inside round gridlines rather than touching the chart edges.
+ */
+function niceTicks(
+  min: number,
+  max: number,
+  target: number
+): { ticks: number[]; lo: number; hi: number } {
+  if (min === max) {
+    const pad = Math.abs(min) * 0.05 || 1;
+    min -= pad;
+    max += pad;
+  }
+  const rawStep = (max - min) / target;
+  const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const norm = rawStep / mag;
+  const niceNorm = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10;
+  const step = niceNorm * mag;
+  const lo = Math.floor(min / step) * step;
+  const hi = Math.ceil(max / step) * step;
+
+  const ticks: number[] = [];
+  for (let t = lo; t <= hi + step * 1e-6; t += step) ticks.push(t);
+  return { ticks, lo, hi };
 }

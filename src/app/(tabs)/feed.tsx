@@ -1,13 +1,17 @@
-import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { BlurView } from "expo-blur";
+import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
+import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
-import { Check, ChevronDown, Compass, Inbox, Users, X } from "lucide-react-native";
+import { Check, ChevronDown, Compass, Heart, Inbox, Search, Users, X } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
-import { FlatList, Linking, Modal, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { FlatList, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Avatar } from "@/components/Avatar";
 import { WorkoutCard } from "@/components/WorkoutCard";
+import { floatingTabBarContentInset } from "@/components/FloatingTabBar";
+import { BlurHeaderBackground } from "@/lib/blurHeader";
 import { supabase } from "@/lib/supabase";
 import type { FeedWorkout, Profile } from "@/lib/types";
 import { useAuth } from "@/providers/AuthProvider";
@@ -16,6 +20,11 @@ const WELCOME_DISMISSED_KEY = "welcome_banner_dismissed_v1";
 const SUGGESTED_DISMISSED_KEY = "suggested_athletes_dismissed_v1";
 const FOUNDER_USERNAME = "rowan";
 const FOUNDER_EMAIL = "hello@kovafit.ca";
+
+// expo-glass-effect glass when available (iOS 26+); otherwise the expo-blur
+// fallback inside HeaderActions. NB: neither is true system Liquid Glass —
+// that needs a native lib (see CLAUDE.md). This just matches the other pills.
+const GLASS = isLiquidGlassAvailable();
 
 type FeedMode = "following" | "discover";
 
@@ -27,11 +36,17 @@ const MODE_LABELS: Record<FeedMode, string> = {
 export default function FeedScreen() {
   const { session, profile } = useAuth();
   const userId = session?.user.id;
+  const insets = useSafeAreaInsets();
   const greetingName = profile?.display_name ?? profile?.username ?? "there";
+  // Measured height of the floating header so the list rests below it at rest
+  // but scrolls *under* the blur. Seeded with an estimate to avoid a flash.
+  const [headerHeight, setHeaderHeight] = useState(insets.top + 56);
   const [mode, setMode] = useState<FeedMode>("following");
+  const [menuOpen, setMenuOpen] = useState(false);
   const [feed, setFeed] = useState<FeedWorkout[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState(0);
 
   const loadFeed = useCallback(async () => {
     if (!userId) {
@@ -76,6 +91,13 @@ export default function FeedScreen() {
     const { data } = await query;
     setFeed((data as unknown as FeedWorkout[]) ?? []);
     setLoaded(true);
+
+    const { count } = await supabase
+      .from("social_follows")
+      .select("*", { count: "exact", head: true })
+      .eq("followed_id", userId)
+      .eq("status", "pending");
+    setPendingRequests(count ?? 0);
   }, [userId, mode]);
 
   useFocusEffect(
@@ -123,24 +145,22 @@ export default function FeedScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
-      <View className="flex-row items-center justify-between px-4 py-3">
-        <FeedModeSelector value={mode} onChange={handleModeChange} />
-        <Pressable
-          className="flex-row items-center gap-1.5 rounded-full bg-surface px-3.5 py-2 active:opacity-70"
-          onPress={() => router.push("/people")}
-        >
-          <Ionicons name="person-add" size={16} color="#22C55E" />
-          <Text className="text-sm font-semibold text-primary">Find Friends</Text>
-        </Pressable>
-      </View>
-
+    <View className="flex-1 bg-background">
       <FlatList
         data={feed}
         keyExtractor={(item) => item.id}
-        contentContainerClassName="pb-4"
+        contentContainerStyle={{
+          paddingTop: headerHeight,
+          paddingBottom: floatingTabBarContentInset(insets.bottom),
+        }}
+        scrollIndicatorInsets={{ top: headerHeight, bottom: floatingTabBarContentInset(insets.bottom) }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#22C55E" />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#22C55E"
+            progressViewOffset={headerHeight}
+          />
         }
         ListHeaderComponent={
           userId && mode === "following" ? (
@@ -175,73 +195,175 @@ export default function FeedScreen() {
           ) : null
         }
       />
-    </SafeAreaView>
+
+      {/* Floating header: blurs the feed as it scrolls under, stays legible. */}
+      <View
+        onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
+        style={{ position: "absolute", top: 0, left: 0, right: 0, paddingTop: insets.top }}
+      >
+        <BlurHeaderBackground />
+        <View className="flex-row items-center justify-between px-4 py-3">
+          <FeedModeSelector value={mode} onOpen={() => setMenuOpen(true)} />
+          <HeaderActions pendingRequests={pendingRequests} />
+        </View>
+      </View>
+
+      {/* Mode picker overlay — a plain solid dropdown in the main view tree
+          (not a Modal). Glass inside a Modal renders as an opaque white panel. */}
+      {menuOpen && (
+        <FeedModeMenu
+          value={mode}
+          headerHeight={headerHeight}
+          onChange={handleModeChange}
+          onClose={() => setMenuOpen(false)}
+        />
+      )}
+    </View>
   );
 }
 
+/**
+ * Top-right glass pill holding two icon buttons — Search and Activity.
+ * Uses expo-glass-effect on iOS 26+, falling back to a frosted expo-blur
+ * capsule elsewhere. Never nests glass on glass.
+ */
+function HeaderActions({ pendingRequests }: { pendingRequests: number }) {
+  const buttons = (
+    <View className="flex-row items-center">
+      <Pressable
+        className="py-2.5 pl-3.5 pr-2 active:opacity-60"
+        onPress={() => router.push("/people")}
+        hitSlop={6}
+      >
+        <Search size={20} color="#22C55E" strokeWidth={2} />
+      </Pressable>
+      <Pressable
+        className="py-2.5 pl-2 pr-3.5 active:opacity-60"
+        onPress={() => router.push("/activity")}
+        hitSlop={6}
+      >
+        <Heart size={20} color="#8B98A9" strokeWidth={1.75} />
+        {pendingRequests > 0 && (
+          <View
+            className="absolute h-2.5 w-2.5 rounded-full bg-primary"
+            style={{ top: 6, right: 8 }}
+          />
+        )}
+      </Pressable>
+    </View>
+  );
+
+  // expo-glass-effect capsule — no manual blur, rim, or sheen needed here.
+  if (GLASS) {
+    return (
+      <GlassView glassEffectStyle="regular" isInteractive style={styles.glassPill}>
+        {buttons}
+      </GlassView>
+    );
+  }
+
+  // Fallback for iOS < 26 / Android: frosted blur with a bright rim and sheen.
+  return (
+    <View className="overflow-hidden rounded-full border border-white/20">
+      <BlurView
+        tint="systemUltraThinMaterialDark"
+        intensity={60}
+        style={StyleSheet.absoluteFill}
+      />
+      <LinearGradient
+        colors={["rgba(255,255,255,0.18)", "rgba(255,255,255,0.04)", "rgba(255,255,255,0.08)"]}
+        locations={[0, 0.5, 1]}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
+      {buttons}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  glassPill: {
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+  menuShadow: {
+    shadowColor: "#000",
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 10,
+  },
+});
+
 function FeedModeSelector({
   value,
-  onChange,
+  onOpen,
 }: {
   value: FeedMode;
-  onChange: (next: FeedMode) => void;
+  onOpen: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const ModeIcon = value === "following" ? Users : Compass;
+  return (
+    <Pressable
+      onPress={onOpen}
+      hitSlop={8}
+      className="flex-row items-center gap-2 active:opacity-70"
+    >
+      <Text className="text-[20px] font-extrabold text-white">{MODE_LABELS[value]}</Text>
+      <ChevronDown size={18} color="#8B98A9" strokeWidth={2.5} />
+    </Pressable>
+  );
+}
+
+/**
+ * Full-screen mode-picker overlay with a plain solid dropdown panel. Rendered
+ * in the main view tree (not a `Modal`) and deliberately not glass — a
+ * GlassView inside a Modal has no content to sample and renders as an opaque
+ * bright-white panel, so we use a solid `surface-2` dropdown instead.
+ */
+function FeedModeMenu({
+  value,
+  headerHeight,
+  onChange,
+  onClose,
+}: {
+  value: FeedMode;
+  headerHeight: number;
+  onChange: (next: FeedMode) => void;
+  onClose: () => void;
+}) {
+  function select(next: FeedMode) {
+    onClose();
+    onChange(next);
+  }
 
   return (
-    <>
+    <Pressable
+      onPress={onClose}
+      className="bg-black/40"
+      style={[StyleSheet.absoluteFill, { paddingTop: headerHeight, paddingLeft: 16 }]}
+    >
       <Pressable
-        onPress={() => setOpen(true)}
-        hitSlop={8}
-        className="flex-row items-center gap-2 active:opacity-70"
+        onPress={(e) => e.stopPropagation()}
+        className="w-[220px] self-start overflow-hidden rounded-2xl border border-white/10 bg-surface-2"
+        style={styles.menuShadow}
       >
-        <View className="h-8 w-8 items-center justify-center rounded-full bg-surface-2">
-          <ModeIcon size={18} color="#22C55E" strokeWidth={2} />
-        </View>
-        <Text className="text-[20px] font-extrabold text-white">{MODE_LABELS[value]}</Text>
-        <ChevronDown size={18} color="#8B98A9" strokeWidth={2.5} />
+        <ModeOption
+          icon={<Users size={18} color={value === "following" ? "#22C55E" : "#FFFFFF"} strokeWidth={2} />}
+          label="Following"
+          description="Friends you follow"
+          selected={value === "following"}
+          onPress={() => select("following")}
+        />
+        <ModeOption
+          icon={<Compass size={18} color={value === "discover" ? "#22C55E" : "#FFFFFF"} strokeWidth={2} />}
+          label="Discover"
+          description="Public workouts"
+          selected={value === "discover"}
+          onPress={() => select("discover")}
+          isLast
+        />
       </Pressable>
-
-      <Modal
-        visible={open}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setOpen(false)}
-      >
-        <Pressable
-          className="flex-1 bg-black/60 px-4 pt-16"
-          onPress={() => setOpen(false)}
-        >
-          <Pressable
-            onPress={(e) => e.stopPropagation()}
-            className="w-[220px] overflow-hidden rounded-2xl bg-surface"
-          >
-            <ModeOption
-              icon={<Users size={18} color={value === "following" ? "#22C55E" : "#FFFFFF"} strokeWidth={2} />}
-              label="Following"
-              description="Friends you follow"
-              selected={value === "following"}
-              onPress={() => {
-                setOpen(false);
-                onChange("following");
-              }}
-            />
-            <ModeOption
-              icon={<Compass size={18} color={value === "discover" ? "#22C55E" : "#FFFFFF"} strokeWidth={2} />}
-              label="Discover"
-              description="Public workouts"
-              selected={value === "discover"}
-              onPress={() => {
-                setOpen(false);
-                onChange("discover");
-              }}
-              isLast
-            />
-          </Pressable>
-        </Pressable>
-      </Modal>
-    </>
+    </Pressable>
   );
 }
 

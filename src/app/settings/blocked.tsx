@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
+import { useHeaderInset } from '@/lib/blurHeader';
 import { supabase } from '@/lib/supabase';
 import type { Profile } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
@@ -17,6 +18,7 @@ interface BlockedRow {
 export default function BlockedUsersScreen() {
   const { session } = useAuth();
   const myId = session?.user.id;
+  const headerInset = useHeaderInset();
   const [rows, setRows] = useState<BlockedRow[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -97,6 +99,7 @@ export default function BlockedUsersScreen() {
       data={rows}
       keyExtractor={(item) => item.blocked_id}
       contentContainerClassName="px-5 pt-6 pb-12"
+      contentContainerStyle={{ paddingTop: headerInset + 24 }}
       ListHeaderComponent={
         <Text className="mb-5 text-[14px] leading-[20px] text-muted">
           Blocked accounts can&apos;t see your workouts, comment on them, or follow you.

@@ -2,6 +2,7 @@ import { Bell } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 
+import { useHeaderInset } from '@/lib/blurHeader';
 import { ensurePermission, hasPermission, schedule } from '@/lib/notifications';
 import {
   DEFAULT_SETTINGS,
@@ -16,6 +17,7 @@ import { useLanguage } from '@/providers/LanguageProvider';
 export default function NotificationsSettingsScreen() {
   const { profile } = useAuth();
   const { t } = useLanguage();
+  const headerInset = useHeaderInset();
 
   const [settings, setSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS);
   const [permGranted, setPermGranted] = useState(false);
@@ -60,7 +62,7 @@ export default function NotificationsSettingsScreen() {
   return (
     <ScrollView
       className="flex-1 bg-background"
-      contentContainerStyle={{ paddingBottom: 48 }}
+      contentContainerStyle={{ paddingTop: headerInset, paddingBottom: 48 }}
       showsVerticalScrollIndicator={false}
     >
       <View className="px-5 pt-7">

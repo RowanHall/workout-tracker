@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { View, type LayoutChangeEvent } from 'react-native';
-import Svg, { Circle, Polygon, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, Line, Polygon, Text as SvgText } from 'react-native-svg';
 
 export interface RadarAxis {
   /** Short label rendered at the tip of the axis. */
@@ -63,21 +63,32 @@ export function RadarChart({ data, labelPadding = 38 }: RadarChartProps) {
     <View className="aspect-square w-full" onLayout={onLayout}>
       {size > 0 && (
         <Svg width={size} height={size}>
-          <Polygon
-            points={polygonAt(0.5)}
-            fill="none"
-            stroke={RING}
-            strokeWidth={0.75}
-            strokeDasharray="2 4"
-            opacity={0.55}
-          />
-          <Polygon
-            points={polygonAt(1)}
-            fill="none"
-            stroke={RING}
-            strokeWidth={1}
-            opacity={0.85}
-          />
+          {[0.25, 0.5, 0.75, 1].map((scale) => (
+            <Polygon
+              key={`ring-${scale}`}
+              points={polygonAt(scale)}
+              fill="none"
+              stroke={RING}
+              strokeWidth={scale === 1 ? 1.25 : 1}
+              opacity={scale === 1 ? 1 : 0.7}
+            />
+          ))}
+
+          {data.map((_, i) => {
+            const p = pointAt(1, i);
+            return (
+              <Line
+                key={`spoke-${i}`}
+                x1={cx}
+                y1={cy}
+                x2={p.x}
+                y2={p.y}
+                stroke={RING}
+                strokeWidth={1}
+                opacity={0.7}
+              />
+            );
+          })}
 
           {data.map((_, i) => {
             const x = cx + radius * Math.cos(angles[i]);

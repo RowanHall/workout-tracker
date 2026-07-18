@@ -16,6 +16,7 @@ import {
 
 import { Avatar } from '@/components/Avatar';
 import { OptionList } from '@/components/onboarding/OptionList';
+import { useHeaderInset } from '@/lib/blurHeader';
 import { SegmentedToggle } from '@/components/onboarding/SegmentedToggle';
 import { supabase } from '@/lib/supabase';
 import type { Profile } from '@/lib/types';
@@ -108,6 +109,7 @@ export default function ProfileSettingsScreen() {
   const { session, profile, refreshProfile } = useAuth();
   const userId = session?.user.id;
   const displayName = profile?.display_name ?? profile?.username ?? '';
+  const headerInset = useHeaderInset();
 
   const [uploading, setUploading] = useState(false);
   const [editing, setEditing] = useState<EditField>(null);
@@ -167,7 +169,7 @@ export default function ProfileSettingsScreen() {
   return (
     <ScrollView
       className="flex-1 bg-background"
-      contentContainerStyle={{ paddingBottom: 48 }}
+      contentContainerStyle={{ paddingTop: headerInset, paddingBottom: 48 }}
       showsVerticalScrollIndicator={false}
     >
       <View className="items-center px-5 pt-8 pb-2">

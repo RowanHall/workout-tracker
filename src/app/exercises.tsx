@@ -1,5 +1,5 @@
 import { router, Stack, useFocusEffect } from 'expo-router';
-import { ChevronRight, Plus } from 'lucide-react-native';
+import { ChevronDown, ChevronRight, ChevronUp, Plus } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -13,6 +13,7 @@ import {
 
 import { NewExerciseModal } from '@/components/NewExerciseModal';
 import { FREE_CUSTOM_EXERCISE_LIMIT } from '@/lib/limits';
+import { useHeaderInset } from '@/lib/blurHeader';
 import { matchesSearch } from '@/lib/search';
 import { supabase } from '@/lib/supabase';
 import { estimatedOneRepMax } from '@/lib/strength';
@@ -54,11 +55,13 @@ export default function ExercisesScreen() {
   const { session } = useAuth();
   const { isPremium } = usePremium();
   const userId = session?.user.id;
+  const headerInset = useHeaderInset();
 
   const [rows, setRows] = useState<ExerciseRow[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState('');
   const [muscleFilter, setMuscleFilter] = useState<MuscleGroup | 'all'>('all');
+  const [filterOpen, setFilterOpen] = useState(false);
   const [creating, setCreating] = useState(false);
 
   const load = useCallback(async () => {
@@ -166,7 +169,8 @@ export default function ExercisesScreen() {
             <Pressable
               hitSlop={10}
               onPress={handleNewPress}
-              className="active:opacity-60"
+              className="h-9 w-9 items-center justify-center active:opacity-60"
+              style={{ marginRight: -4 }}
             >
               <Plus size={24} color="#F59E0B" strokeWidth={2.25} />
             </Pressable>
@@ -178,6 +182,7 @@ export default function ExercisesScreen() {
         data={filtered}
         keyExtractor={(item) => String(item.id)}
         contentContainerClassName="p-4"
+        contentContainerStyle={{ paddingTop: headerInset + 16 }}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
           // Scrolls with the list rather than staying pinned.
@@ -191,27 +196,56 @@ export default function ExercisesScreen() {
               onChangeText={setSearch}
             />
 
-            <View className="flex-row flex-wrap gap-2 pt-3">
-              {(['all', ...muscleGroups] as const).map((group) => {
-                const active = muscleFilter === group;
-                return (
-                  <Pressable
-                    key={group}
-                    onPress={() => setMuscleFilter(group)}
-                    className={`rounded-full px-3.5 py-1.5 active:opacity-70 ${
-                      active ? 'bg-primary' : 'bg-surface-2'
-                    }`}
-                  >
-                    <Text
-                      className={`text-[13px] font-semibold capitalize ${
-                        active ? 'text-background' : 'text-muted'
-                      }`}
-                    >
-                      {group === 'all' ? 'All' : group.replace('_', ' ')}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+            <View className="pt-3">
+              <Pressable
+                onPress={() => setFilterOpen((o) => !o)}
+                className="flex-row items-center justify-between rounded-full bg-surface-2 px-4 py-2.5 active:opacity-70"
+              >
+                <Text
+                  className={`text-[13px] capitalize ${
+                    muscleFilter === 'all'
+                      ? 'text-muted'
+                      : 'font-semibold text-white'
+                  }`}
+                >
+                  {muscleFilter === 'all'
+                    ? 'All muscle groups'
+                    : muscleFilter.replace('_', ' ')}
+                </Text>
+                {filterOpen ? (
+                  <ChevronUp size={16} color="#8B98A9" strokeWidth={2} />
+                ) : (
+                  <ChevronDown size={16} color="#8B98A9" strokeWidth={2} />
+                )}
+              </Pressable>
+
+              {filterOpen && (
+                <View className="mt-2 flex-row flex-wrap gap-2">
+                  {(['all', ...muscleGroups] as const).map((group) => {
+                    const active = muscleFilter === group;
+                    return (
+                      <Pressable
+                        key={group}
+                        onPress={() => {
+                          setMuscleFilter(group);
+                          setFilterOpen(false);
+                        }}
+                        className={`rounded-full px-3.5 py-1.5 active:opacity-70 ${
+                          active ? 'bg-primary' : 'bg-surface-2'
+                        }`}
+                      >
+                        <Text
+                          className={`text-[13px] font-semibold capitalize ${
+                            active ? 'text-background' : 'text-muted'
+                          }`}
+                        >
+                          {group === 'all' ? 'All' : group.replace('_', ' ')}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
             </View>
           </View>
         }
@@ -219,7 +253,7 @@ export default function ExercisesScreen() {
           const used = item.sets > 0;
           return (
             <Pressable
-              className="mb-2.5 flex-row items-center rounded-2xl bg-surface p-4 active:opacity-70"
+              className="mb-2.5 flex-row items-center rounded-2xl bg-background p-4 active:opacity-70"
               onPress={() => router.push(`/exercise/${item.id}`)}
             >
               <View className="flex-1">

@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import { useHeaderInset } from '@/lib/blurHeader';
 import { dateKey, formatWeight } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 import type { BodyWeight } from '@/lib/types';
@@ -19,6 +20,7 @@ import { useAuth } from '@/providers/AuthProvider';
 export default function BodyWeightSettingsScreen() {
   const { session } = useAuth();
   const userId = session?.user.id;
+  const headerInset = useHeaderInset();
 
   const [latest, setLatest] = useState<Pick<BodyWeight, 'recorded_on' | 'weight'> | null>(null);
   const [input, setInput] = useState('');
@@ -80,7 +82,7 @@ export default function BodyWeightSettingsScreen() {
       className="flex-1 bg-background"
     >
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 48 }}
+        contentContainerStyle={{ paddingTop: headerInset, paddingBottom: 48 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >

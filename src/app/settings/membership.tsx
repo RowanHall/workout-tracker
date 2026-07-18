@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Alert, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { KovaLogo } from '@/components/KovaLogo';
+import { useHeaderInset } from '@/lib/blurHeader';
 import { usePremium } from '@/providers/PremiumProvider';
 
 const SUBSCRIPTION_URL = Platform.select({
@@ -14,6 +15,7 @@ const SUBSCRIPTION_URL = Platform.select({
 export default function ManageMembershipScreen() {
   const { isPremium, restore } = usePremium();
   const [restoring, setRestoring] = useState(false);
+  const headerInset = useHeaderInset();
 
   async function handleRestore() {
     setRestoring(true);
@@ -39,7 +41,7 @@ export default function ManageMembershipScreen() {
   return (
     <ScrollView
       className="flex-1 bg-background"
-      contentContainerStyle={{ paddingBottom: 48 }}
+      contentContainerStyle={{ paddingTop: headerInset, paddingBottom: 48 }}
       showsVerticalScrollIndicator={false}
     >
       <View className="mx-5 mt-6 rounded-2xl bg-surface p-5">
