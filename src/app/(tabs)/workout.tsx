@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { floatingTabBarContentInset } from '@/components/FloatingTabBar';
+import { tabBarContentInset } from '@/lib/tabBar';
 import { BlurHeaderBackground } from '@/lib/blurHeader';
 import { useActiveWorkoutContext } from '@/providers/ActiveWorkoutProvider';
 import { dateKey } from '@/lib/format';
@@ -166,7 +166,7 @@ export default function WorkoutScreen() {
         className="flex-1"
         contentContainerStyle={{
           paddingTop: insets.top,
-          paddingBottom: floatingTabBarContentInset(insets.bottom),
+          paddingBottom: tabBarContentInset(insets.bottom),
         }}
         scrollIndicatorInsets={{ top: insets.top }}
         showsVerticalScrollIndicator={false}

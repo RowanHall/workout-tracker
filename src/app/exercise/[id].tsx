@@ -236,6 +236,7 @@ export default function ExerciseDetailScreen() {
                   hitSlop={10}
                   onPress={() => setEditing(true)}
                   className="active:opacity-60"
+                  style={{ height: 36, alignItems: 'center', justifyContent: 'center' }}
                 >
                   <Text className="text-[15px] font-semibold text-primary">Edit</Text>
                 </Pressable>

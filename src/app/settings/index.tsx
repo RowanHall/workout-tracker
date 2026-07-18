@@ -15,6 +15,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
+import { BodyWeightEditorSheet } from '@/components/BodyWeightEditorSheet';
 import { KovaLogo } from '@/components/KovaLogo';
 import { ProBadge } from '@/components/ProBadge';
 import { useHeaderInset } from '@/lib/blurHeader';
@@ -40,6 +41,7 @@ export default function SettingsHubScreen() {
   const displayName = profile?.display_name ?? profile?.username ?? '';
 
   const [latestWeight, setLatestWeight] = useState<BodyWeight['weight'] | null>(null);
+  const [editingWeight, setEditingWeight] = useState(false);
   const [notifsOn, setNotifsOn] = useState(false);
   const [exporting, setExporting] = useState(false);
 
@@ -183,7 +185,7 @@ export default function SettingsHubScreen() {
               <Text className="text-[13px] text-muted">{t('common.notSet')}</Text>
             )
           }
-          onPress={() => router.push('/settings/body-weight')}
+          onPress={() => setEditingWeight(true)}
           last
         />
       </Section>
@@ -211,6 +213,14 @@ export default function SettingsHubScreen() {
           last
         />
       </Section>
+
+      <BodyWeightEditorSheet
+        visible={editingWeight}
+        onClose={() => setEditingWeight(false)}
+        userId={userId}
+        latestLbs={latestWeight}
+        onSaved={load}
+      />
     </ScrollView>
   );
 }

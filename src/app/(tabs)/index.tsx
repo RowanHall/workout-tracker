@@ -12,7 +12,7 @@ import { MuscleMap } from "@/components/MuscleMap";
 import { RadarChart, type RadarAxis } from "@/components/RadarChart";
 import { VolumeHeatmap } from "@/components/VolumeHeatmap";
 import { WeekTracker } from "@/components/WeekTracker";
-import { floatingTabBarContentInset } from "@/components/FloatingTabBar";
+import { tabBarContentInset } from "@/lib/tabBar";
 import { BlurHeaderBackground } from "@/lib/blurHeader";
 import { dateKey, formatDuration, formatVolume } from "@/lib/format";
 import { mergeMuscles } from "@/lib/muscles";
@@ -174,7 +174,7 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingTop: headerHeight,
-          paddingBottom: floatingTabBarContentInset(insets.bottom),
+          paddingBottom: tabBarContentInset(insets.bottom),
         }}
         scrollIndicatorInsets={{ top: headerHeight }}
       >

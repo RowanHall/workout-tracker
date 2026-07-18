@@ -110,13 +110,6 @@ function RootNavigator() {
           }}
         />
         <Stack.Screen
-          name="settings/body-weight"
-          options={{
-            ...blurHeaderOptions,
-            title: t('settings.row.bodyWeight'),
-          }}
-        />
-        <Stack.Screen
           name="settings/membership"
           options={{
             ...blurHeaderOptions,

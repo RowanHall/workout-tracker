@@ -1,5 +1,8 @@
+import { BlurView } from 'expo-blur';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Plus, Trash2 } from 'lucide-react-native';
+import { Plus, Trash2, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -8,6 +11,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   View,
@@ -15,12 +19,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ExercisePicker } from '@/components/ExercisePicker';
+import { MuscleMap } from '@/components/MuscleMap';
+import { BlurHeaderBackground } from '@/lib/blurHeader';
 import { formatSetWeight, parseSetWeightInput } from '@/lib/format';
 import { FREE_ROUTINE_LIMIT } from '@/lib/limits';
 import { supabase } from '@/lib/supabase';
 import type { Exercise } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
 import { usePremium } from '@/providers/PremiumProvider';
+
+// Evaluate once — iOS 26+ gets real glass, everything else the blur fallback.
+const LIQUID_GLASS = isLiquidGlassAvailable();
 
 interface DraftSet {
   weight: string;
@@ -45,6 +54,7 @@ export default function RoutineEditorScreen() {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
+  const [headerHeight, setHeaderHeight] = useState(0);
 
   useEffect(() => {
     if (isNew) return;
@@ -289,23 +299,14 @@ export default function RoutineEditorScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         className="flex-1"
       >
-        <View className="flex-row items-center justify-between px-4 pt-3">
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <Text className="text-base font-semibold text-muted">Cancel</Text>
-          </Pressable>
-          <Text className="text-base font-bold text-white">
-            {isNew ? 'New Routine' : 'Edit Routine'}
-          </Text>
-          <Pressable onPress={handleSave} hitSlop={8} disabled={saving}>
-            <Text className="text-base font-bold text-primary">
-              {saving ? 'Saving…' : 'Save'}
-            </Text>
-          </Pressable>
-        </View>
-
         <ScrollView
           className="flex-1"
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 16 }}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingBottom: 32,
+            paddingTop: headerHeight + 16,
+          }}
+          scrollIndicatorInsets={{ top: headerHeight }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -318,20 +319,21 @@ export default function RoutineEditorScreen() {
             maxLength={80}
           />
 
-          <View className="mt-6">
-            {exercises.map((ex) => (
+          <View className="mt-2">
+            {exercises.map((ex, i) => (
               <RoutineExerciseCard
                 key={ex.key}
+                order={i + 1}
                 draft={ex}
                 onAddSet={() => handleAddSet(ex.key)}
-                onUpdateSet={(i, patch) => handleUpdateSet(ex.key, i, patch)}
-                onRemoveSet={(i) => handleRemoveSet(ex.key, i)}
+                onUpdateSet={(idx, patch) => handleUpdateSet(ex.key, idx, patch)}
+                onRemoveSet={(idx) => handleRemoveSet(ex.key, idx)}
                 onRemoveExercise={() => handleRemoveExercise(ex.key)}
               />
             ))}
 
             <Pressable
-              className="mt-1 flex-row items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-surface/40 py-5 active:opacity-70"
+              className="mt-4 flex-row items-center justify-center gap-2 rounded-full border border-white/10 py-5 active:opacity-70"
               onPress={() => setPickerVisible(true)}
             >
               <Plus size={20} color="#22C55E" strokeWidth={2.25} />
@@ -350,6 +352,27 @@ export default function RoutineEditorScreen() {
             )}
           </View>
         </ScrollView>
+
+        {/* Floating frosted header — content scrolls under it and feathers out. */}
+        <View
+          className="absolute left-0 right-0 top-0"
+          onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
+        >
+          <BlurHeaderBackground />
+          <View className="flex-row items-center justify-between px-4 pb-3 pt-8">
+            <GlassButton onPress={() => router.back()}>
+              <Text className="text-base font-semibold text-muted">Cancel</Text>
+            </GlassButton>
+            <Text className="text-base font-bold text-white">
+              {isNew ? 'New Routine' : 'Edit Routine'}
+            </Text>
+            <GlassButton onPress={handleSave} disabled={saving}>
+              <Text className="text-base font-bold text-primary">
+                {saving ? 'Saving…' : 'Save'}
+              </Text>
+            </GlassButton>
+          </View>
+        </View>
       </KeyboardAvoidingView>
 
       <ExercisePicker
@@ -361,35 +384,104 @@ export default function RoutineEditorScreen() {
   );
 }
 
+/**
+ * A pill-shaped glass button for the floating header. Uses expo-glass-effect on
+ * iOS 26+, falling back to a frosted blur capsule with a bright rim + sheen
+ * elsewhere. Not true system Liquid Glass — see the design notes.
+ */
+function GlassButton({
+  onPress,
+  disabled,
+  children,
+}: {
+  onPress: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  const inner = (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      hitSlop={8}
+      className="px-4 py-2 active:opacity-60"
+    >
+      {children}
+    </Pressable>
+  );
+
+  // expo-glass-effect capsule — no manual blur, rim, or sheen needed here.
+  if (LIQUID_GLASS) {
+    return (
+      <GlassView
+        glassEffectStyle="regular"
+        isInteractive
+        style={{ borderRadius: 999, overflow: 'hidden' }}
+      >
+        {inner}
+      </GlassView>
+    );
+  }
+
+  // Fallback for iOS < 26 / Android: frosted blur with a bright rim and sheen.
+  return (
+    <View className="overflow-hidden rounded-full border border-white/20">
+      <BlurView
+        tint="systemUltraThinMaterialDark"
+        intensity={60}
+        style={StyleSheet.absoluteFill}
+      />
+      <LinearGradient
+        colors={['rgba(255,255,255,0.18)', 'rgba(255,255,255,0.04)', 'rgba(255,255,255,0.08)']}
+        locations={[0, 0.5, 1]}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
+      {inner}
+    </View>
+  );
+}
+
 function RoutineExerciseCard({
+  order,
   draft,
   onAddSet,
   onUpdateSet,
   onRemoveSet,
   onRemoveExercise,
 }: {
+  order: number;
   draft: DraftExercise;
   onAddSet: () => void;
   onUpdateSet: (setIndex: number, patch: Partial<DraftSet>) => void;
   onRemoveSet: (setIndex: number) => void;
   onRemoveExercise: () => void;
 }) {
+  const muscles = draft.exercise.muscles ?? [];
+
   return (
-    <View className="mb-3 rounded-2xl bg-surface p-4">
-      <View className="mb-3 flex-row items-center justify-between">
-        <View className="flex-1 pr-2">
+    <View className="border-b border-white/5 pb-5 pt-4">
+      <View className="mb-3 flex-row items-center gap-3">
+        <View className="h-8 w-8 items-center justify-center rounded-lg bg-surface">
+          <Text className="text-sm font-bold text-primary">{order}</Text>
+        </View>
+        <View className="flex-1">
           <Text className="text-base font-bold text-white">{draft.exercise.name}</Text>
           <Text className="text-xs capitalize text-muted">
             {draft.exercise.muscle_group.replace('_', ' ')}
           </Text>
         </View>
-        <Pressable onPress={onRemoveExercise} hitSlop={8} className="px-1">
-          <Trash2 size={18} color="#EF4444" strokeWidth={1.75} />
+        {muscles.length > 0 && (
+          <View style={{ width: 44 }}>
+            <MuscleMap muscles={muscles} side="front" />
+          </View>
+        )}
+        <Pressable onPress={onRemoveExercise} hitSlop={10} className="self-start active:opacity-70">
+          <X size={16} color="#8B98A9" strokeWidth={2} />
         </Pressable>
       </View>
 
       {draft.sets.length > 0 && (
-        <View className="mb-2 flex-row items-center px-3 pb-1">
+        <View className="mb-2 flex-row items-center px-1 pb-1">
           <Text className="w-9 text-[10px] font-semibold uppercase tracking-wider text-muted">
             Set
           </Text>
@@ -406,10 +498,7 @@ function RoutineExerciseCard({
       )}
 
       {draft.sets.map((set, i) => (
-        <View
-          key={i}
-          className="mb-1.5 flex-row items-center rounded-xl bg-surface-2 px-3 py-2"
-        >
+        <View key={i} className="mb-1.5 flex-row items-center px-1 py-1">
           <Text className="w-9 font-bold text-primary">#{i + 1}</Text>
           <View className="flex-1 flex-row items-center justify-center gap-8">
             <TextInput
@@ -440,7 +529,7 @@ function RoutineExerciseCard({
       ))}
 
       <Pressable
-        className="mt-1 flex-row items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-surface-2/50 py-3.5 active:opacity-70"
+        className="mt-1 flex-row items-center justify-center gap-2 rounded-full border border-white/10 py-3 active:opacity-70"
         onPress={onAddSet}
       >
         <Plus size={18} color="#22C55E" strokeWidth={2.25} />

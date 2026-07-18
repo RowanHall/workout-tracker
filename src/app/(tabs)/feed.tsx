@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Avatar } from "@/components/Avatar";
 import { WorkoutCard } from "@/components/WorkoutCard";
-import { floatingTabBarContentInset } from "@/components/FloatingTabBar";
+import { tabBarContentInset } from "@/lib/tabBar";
 import { BlurHeaderBackground } from "@/lib/blurHeader";
 import { supabase } from "@/lib/supabase";
 import type { FeedWorkout, Profile } from "@/lib/types";
@@ -151,9 +151,9 @@ export default function FeedScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={{
           paddingTop: headerHeight,
-          paddingBottom: floatingTabBarContentInset(insets.bottom),
+          paddingBottom: tabBarContentInset(insets.bottom),
         }}
-        scrollIndicatorInsets={{ top: headerHeight, bottom: floatingTabBarContentInset(insets.bottom) }}
+        scrollIndicatorInsets={{ top: headerHeight, bottom: tabBarContentInset(insets.bottom) }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

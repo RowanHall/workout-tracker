@@ -169,8 +169,8 @@ export default function ExercisesScreen() {
             <Pressable
               hitSlop={10}
               onPress={handleNewPress}
-              className="h-9 w-9 items-center justify-center active:opacity-60"
-              style={{ marginRight: -4 }}
+              className="active:opacity-60"
+              style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', marginRight: -4 }}
             >
               <Plus size={24} color="#F59E0B" strokeWidth={2.25} />
             </Pressable>
