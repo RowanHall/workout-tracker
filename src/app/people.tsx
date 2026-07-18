@@ -1,6 +1,9 @@
+import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
-import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
 import { useHeaderInset } from '@/lib/blurHeader';
@@ -8,11 +11,15 @@ import { supabase } from '@/lib/supabase';
 import type { Profile } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
 
+// Module scope — evaluate once, not per render.
+const LIQUID_GLASS = isLiquidGlassAvailable();
+
 export default function PeopleScreen() {
   const { session } = useAuth();
   const userId = session?.user.id;
   const headerInset = useHeaderInset();
   const [search, setSearch] = useState('');
+  const [searchBarHeight, setSearchBarHeight] = useState(0);
   const [results, setResults] = useState<Profile[]>([]);
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
   const [requestedIds, setRequestedIds] = useState<Set<string>>(new Set());
@@ -84,22 +91,17 @@ export default function PeopleScreen() {
   }
 
   return (
-    <View
-      className="flex-1 bg-background px-4 pt-4"
-      style={{ paddingTop: headerInset + 16 }}
-    >
-      <TextInput
-        className="mb-4 rounded-xl border border-border bg-surface px-4 py-3 text-base text-white"
-        placeholder="Search by username…"
-        placeholderTextColor="#8B98A9"
-        autoCapitalize="none"
-        value={search}
-        onChangeText={setSearch}
-      />
-
+    <View className="flex-1 bg-background">
       <FlatList
         data={results}
         keyExtractor={(item) => item.id}
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingTop: headerInset + searchBarHeight + 8,
+          paddingBottom: 40,
+        }}
+        scrollIndicatorInsets={{ top: headerInset + searchBarHeight }}
+        keyboardShouldPersistTaps="handled"
         renderItem={({ item }) => {
           const isFollowing = followedIds.has(item.id);
           const isRequested = requestedIds.has(item.id);
@@ -143,6 +145,86 @@ export default function PeopleScreen() {
           <Text className="mt-12 text-center text-muted">No lifters found</Text>
         }
       />
+
+      {/* Floating glass search pill, pinned below the blur header. Content
+          scrolls under it and it's lifted by its own shadow — no secondary
+          frosted band, so we never stack glass on glass. */}
+      <View
+        className="absolute left-0 right-0 px-4 pb-3 pt-1"
+        style={{ top: headerInset }}
+        onLayout={(e) => setSearchBarHeight(e.nativeEvent.layout.height)}
+      >
+        <SearchInput value={search} onChangeText={setSearch} />
+      </View>
     </View>
   );
 }
+
+/**
+ * Glass search field, matching the app's floating glass pills. Uses
+ * expo-glass-effect on iOS 26+, falling back to a frosted BlurView + bright
+ * rim + sheen elsewhere (neither is true system Liquid Glass). The `TextInput`
+ * itself is transparent so the glass surface shows through. Never nests glass
+ * on glass.
+ */
+function SearchInput({
+  value,
+  onChangeText,
+}: {
+  value: string;
+  onChangeText: (text: string) => void;
+}) {
+  const input = (
+    <TextInput
+      className="px-4 py-3 text-base text-white"
+      placeholder="Search by username…"
+      placeholderTextColor="#8B98A9"
+      autoCapitalize="none"
+      value={value}
+      onChangeText={onChangeText}
+    />
+  );
+
+  if (LIQUID_GLASS) {
+    return (
+      <View style={styles.shadow}>
+        <GlassView glassEffectStyle="regular" isInteractive style={styles.glassField}>
+          {input}
+        </GlassView>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.shadow}>
+      <View className="overflow-hidden rounded-xl border border-white/20">
+        <BlurView
+          tint="systemUltraThinMaterialDark"
+          intensity={60}
+          style={StyleSheet.absoluteFill}
+        />
+        <LinearGradient
+          colors={['rgba(255,255,255,0.18)', 'rgba(255,255,255,0.04)', 'rgba(255,255,255,0.08)']}
+          locations={[0, 0.5, 1]}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+        {input}
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  shadow: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 10,
+  },
+  glassField: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+});

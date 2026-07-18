@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import {
   ChevronRight,
   Dumbbell,
@@ -332,6 +332,22 @@ export default function UserProfileScreen() {
       contentContainerClassName="p-4 pb-8"
       contentContainerStyle={{ paddingTop: headerInset + 16 }}
     >
+      {!isSelf && (
+        <Stack.Screen
+          options={{
+            headerRight: () => (
+              <Pressable
+                hitSlop={10}
+                className="active:opacity-70"
+                style={{ width: 36, height: 36, alignItems: "center", justifyContent: "center" }}
+                onPress={() => setMenuOpen(true)}
+              >
+                <MoreHorizontal size={24} color="#FFFFFF" strokeWidth={2.25} />
+              </Pressable>
+            ),
+          }}
+        />
+      )}
       <View className="-mt-1 mb-2 flex-row items-center">
         <View className="flex-1" />
         {!isBlocked && !isPrivate && (
@@ -356,17 +372,7 @@ export default function UserProfileScreen() {
             </Text>
           </View>
         )}
-        <View className="flex-1 items-end">
-          {!isSelf && (
-            <Pressable
-              hitSlop={10}
-              className="rounded-full bg-surface-2 p-2 active:opacity-70"
-              onPress={() => setMenuOpen(true)}
-            >
-              <MoreHorizontal size={18} color="#FFFFFF" strokeWidth={2} />
-            </Pressable>
-          )}
-        </View>
+        <View className="flex-1" />
       </View>
       <View className="mb-4 items-center">
         <View className="mb-3">
