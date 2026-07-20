@@ -28,13 +28,29 @@ const ENTITLEMENT_ID = 'Kova Pro';
 const IS_EXPO_GO =
   Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
-const API_KEY = Platform.select({
+/** RevenueCat public SDK keys are platform-prefixed (`appl_` for Apple,
+ *  `goog_` for Google). A malformed key (e.g. a stray `iappl_`) makes the
+ *  native `configure()` raise an NSException that JS try/catch can't catch —
+ *  it crashes the app on launch. Validate the prefix here so a bad key just
+ *  disables purchases instead of taking the whole app down. */
+const KEY_PREFIX = Platform.select({ ios: 'appl_', android: 'goog_', default: '' });
+const RAW_API_KEY = Platform.select({
   ios: process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY,
   android: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY,
   default: undefined,
 });
+const API_KEY =
+  RAW_API_KEY && KEY_PREFIX && RAW_API_KEY.startsWith(KEY_PREFIX)
+    ? RAW_API_KEY
+    : undefined;
 
-/** Whether purchases can actually run on this build (real build + key set). */
+if (RAW_API_KEY && !API_KEY) {
+  console.warn(
+    `[Premium] Ignoring malformed RevenueCat key (expected "${KEY_PREFIX}…" prefix). Purchases disabled.`
+  );
+}
+
+/** Whether purchases can actually run on this build (real build + valid key). */
 const PURCHASES_ENABLED = !IS_EXPO_GO && !!API_KEY;
 
 interface PremiumContextValue {
